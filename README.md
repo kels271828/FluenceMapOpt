@@ -13,7 +13,7 @@ Download data and solver from the links below, and unzip in the same directory a
 * [Examples](https://github.com/kels271828/FluenceMapOpt/tree/master/Examples): Code to reproduce the examples from our paper
 
 ## Links
-* [CORT data](https://gigadb.org/dataset/100110)
+* [CORT dataset](https://gigadb.org/dataset/100110)
   * Prostate case data: ftp://parrot.genomics.cn/gigadb/pub/10.5524/100001_101000/100110/PROSTATE.zip
   * Prostate DICOM data: ftp://parrot.genomics.cn/gigadb/pub/10.5524/100001_101000/100110/Prostate_Dicom.zip
 * [minConf solver](https://www.cs.ubc.ca/~schmidtm/Software/minConf.zip)
