@@ -4,3 +4,4 @@ Fluence map optimization for intensity-modulated radiation therapy planning can 
 
 ## Documents
 * [Preprint](https://arxiv.org/abs/1907.10712) (July 2019)
+* [Poster](https://github.com/kels271828/FluenceMapOpt/blob/master/poster.pdf) (April 2018)
