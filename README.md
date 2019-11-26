@@ -15,5 +15,5 @@ Download data and solver from the links below, and unzip in the same directory a
 ## Links
 * [CORT data](https://gigadb.org/dataset/100110)
   * Prostate case data: ftp://parrot.genomics.cn/gigadb/pub/10.5524/100001_101000/100110/PROSTATE.zip
-  * Prostate case DICOM data: ftp://parrot.genomics.cn/gigadb/pub/10.5524/100001_101000/100110/Prostate_Dicom.zip
+  * Prostate DICOM data: ftp://parrot.genomics.cn/gigadb/pub/10.5524/100001_101000/100110/Prostate_Dicom.zip
 * [minConf solver](https://www.cs.ubc.ca/~schmidtm/Software/minConf.zip)
