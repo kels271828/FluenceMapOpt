@@ -58,6 +58,11 @@ classdef FluenceMapOpt < handle
         ub       % upper bound for beamlets
         nIter    % number of iterations used
         
+        % Constraint generation variables
+        A_unif
+        d_unif
+        H_unif
+        
         % Solution variables
         x   % beamlet intensities
         obj % objective function values
@@ -115,7 +120,7 @@ classdef FluenceMapOpt < handle
             f.nAngles = length(f.angles);
             f.getD();
             f.getStructVars();
-            f.getA(); 
+            f.getA('full'); 
             
             % Set initial beamlets
             if flag && isfield(pars,'xInit')
@@ -147,6 +152,7 @@ classdef FluenceMapOpt < handle
                 temp = [temp D];
             end
             f.D = temp;
+            f.nBeamlts = size(f.D,2);
         end
         
         % Get structure-specific variables.
@@ -196,67 +202,50 @@ classdef FluenceMapOpt < handle
         end
         
         % Get stacked A matrix.
-        function getA(f)
+        function getA(f,type)
             
-            f.A = [];
+            A = [];
             for i = 1:f.nStructs
                 for j = 1:f.structs{i}.nTerms
-                    f.A = [f.A; sqrt(f.structs{i}.terms{j}.weight/f.structs{i}.nVoxels)*f.structs{i}.A];
+                    temp = sqrt(f.structs{i}.terms{j}.weight/f.structs{i}.nVoxels)*f.structs{i}.A;
+                    if strcmp(type,'unif')
+                        if strcmp(f.structs{i}.terms{j}.type,'unif')
+                            A = [A; temp];
+                        end
+                    else
+                        A = [A; temp];
+                    end
                 end
             end
-            f.nBeamlts = size(f.A,2);
             if f.lambda > 0
-                f.A = [f.A; sqrt(f.lambda)*eye(f.nBeamlts)];
+                A = [A; sqrt(f.lambda)*eye(f.nBeamlts)];
             end
-            f.H = f.A'*f.A;
+            if strcmp(type,'unif')
+                f.A_unif = A;
+                f.H_unif = A'*A;
+            else
+                f.A = A;
+                f.H = A'*A;
+            end
             f.lb = zeros(f.nBeamlts,1);
             f.ub = inf(f.nBeamlts,1);
         end
         
         % Get stacked d vector.
-        function getd(f)
+        function getd(f,type)
             
-            f.d = [];
-            for i = 1:f.nStructs
-                for j = 1:f.structs{i}.nTerms
-                    temp = sqrt(f.structs{i}.terms{j}.weight/f.structs{i}.nVoxels)*f.structs{i}.terms{j}.d;
-                    if ~strcmp(f.structs{i}.terms{j}.type,'unif')
-                        temp = temp + sqrt(f.structs{i}.terms{j}.weight/f.structs{i}.nVoxels)*f.structs{i}.terms{j}.w;
-                    end
-                    f.d = [f.d; temp];
-                end
-            end
-            if f.lambda > 0
-                f.d = [f.d; zeros(f.nBeamlts,1)];
-            end
-        end
-       
-        % Initialize x.
-        function initX(f)
-
-            % Get A
-            A = [];
-            for i = 1:f.nStructs
-                for j = 1:f.structs{i}.nTerms
-                    if strcmp(f.structs{i}.terms{j}.type,'unif')
-                        A = [A; sqrt(f.structs{i}.terms{j}.weight/f.structs{i}.nVoxels)*f.structs{i}.A];
-                    end
-                end
-            end
-            nBeamlts = size(A,2);
-            if f.lambda > 0
-                A = [A; sqrt(f.lambda)*eye(nBeamlts)];
-            end
-            H = A'*A;
-            lb = zeros(nBeamlts,1);
-            ub = inf(nBeamlts,1);
-        
-            % Get d
             d = [];
             for i = 1:f.nStructs
                 for j = 1:f.structs{i}.nTerms
-                    if strcmp(f.structs{i}.terms{j}.type,'unif')
-                        temp = sqrt(f.structs{i}.terms{j}.weight/f.structs{i}.nVoxels)*f.structs{i}.terms{j}.d;
+                    temp = sqrt(f.structs{i}.terms{j}.weight/f.structs{i}.nVoxels)*f.structs{i}.terms{j}.d;
+                    if strcmp(type,'unif')
+                        if strcmp(f.structs{i}.terms{j}.type,'unif')
+                            d = [d; temp];
+                        end
+                    else
+                        if ~strcmp(f.structs{i}.terms{j}.type,'unif')
+                            temp = temp + sqrt(f.structs{i}.terms{j}.weight/f.structs{i}.nVoxels)*f.structs{i}.terms{j}.w;
+                        end
                         d = [d; temp];
                     end
                 end
@@ -264,20 +253,65 @@ classdef FluenceMapOpt < handle
             if f.lambda > 0
                 d = [d; zeros(f.nBeamlts,1)];
             end
+            if strcmp(type,'unif')
+                f.d_unif = d;
+            else
+                f.d = d;
+            end
+        end
+       
+        % Initialize x.
+        function initX(f)
+            
+            f.getA('unif');
+            f.getd('unif');
 
             % Solve non-negative least-squares problem for x           
-            F = -A'*d;
-            fun = @(x)f.quadObj(x,H,F);
+            F = -f.A_unif'*f.d_unif;
+            fun = @(x)f.quadObj(x,f.H_unif,F);
             options.verbose = 0;
             options.method = 'newton';
-            f.xInit = minConf_TMP(fun,zeros(nBeamlts,1),lb,ub,options);
+            f.xInit = minConf_TMP(fun,zeros(f.nBeamlts,1),f.lb,f.ub,options);
         end
 
+        % Constraint generation method.
+        function constGen(f)
+            
+            [A_dvc,d_dvc] = f.calcConstMats();
+            f.x = lsqlin(f.A_unif,f.d_unif,A_dvc,d_dvc,[],[],f.lb,f.ub);
+        end
+        
+        % Calculate constraint matrices for dose-volume constraints.
+        function [A_dvc,d_dvc] = calcConstMats(f)
+           
+            A_dvc = [];
+            d_dvc = [];
+            for i = 1:f.nStructs
+                for j = 1:f.structs{i}.nTerms
+                    if strcmp(f.structs{i}.terms{j}.type,'udvc')
+                        [~,idx] = sort(f.structs{i}.A*f.x);
+                        idx_lower = f.structs{i}.nVoxels - f.structs{i}.terms{j}.k;
+                        A_dvc = [A_dvc; f.structs{i}.A(idx(1:idx_lower),:)];
+                        d_dvc = [d_dvc; f.structs{i}.terms{j}.d(idx(1:idx_lower),:)];
+                    elseif strcmp(f.structs{i}.terms{j}.type,'ldvc')
+                        [~,idx] = sort(f.structs{i}.A*f.x);
+                        idx_upper = f.structs{i}.terms{j}.k + 1;
+                        A_dvc = [A_dvc; -f.structs{i}.A(idx(idx_upper:end),:)];
+                        d_dvc = [d_dvc; -f.structs{i}.terms{j}.d(idx(idx_upper:end),:)];
+                    end
+                end
+            end
+        end
+        
         % Calculate beamlet intensities.
-        function calcDose(f)
+        function calcDose(f,print)
+            
+            if ~exist('print','var')
+                print = false;
+            end
             
             % Initialize x, w, and objective values
-            f.initProb();
+            f.initProb(print);
             
             % Fluence map optimization
             for t = 1:f.maxIter
@@ -308,7 +342,7 @@ classdef FluenceMapOpt < handle
                 end
                 f.err(t) = errorSum;
                 f.nIter = t;
-                f.calcObj(t);
+                f.calcObj(t,print);
 
                 % Stopping criteria
                 if errorSum <= f.tol
@@ -319,7 +353,7 @@ classdef FluenceMapOpt < handle
         end
 
         % Initialize x, w, and objective values
-        function initProb(f)
+        function initProb(f,print)
 
             % Initialize x and w
             f.x = f.xInit;
@@ -347,13 +381,13 @@ classdef FluenceMapOpt < handle
             end
             
             % Calculate and print initial objective value
-            f.calcObj(0)
+            f.calcObj(0,print)
         end
         
         % Solve non-negative least-squares problem for x.
         function projX(f)
             
-            f.getd();
+            f.getd('full');
             F = -f.A'*f.d;
             fun = @(x)f.quadObj(x,f.H,F);
             options.verbose = 0;
@@ -383,7 +417,7 @@ classdef FluenceMapOpt < handle
         end
         
         % Calculate and print objective function value.
-        function calcObj(f,iter)
+        function calcObj(f,iter,print)
             
             for i = 1:f.nStructs
                 for j = 1:f.structs{i}.nTerms
@@ -400,8 +434,10 @@ classdef FluenceMapOpt < handle
                 end
             end
             f.obj(iter+1) = f.obj(iter+1) + 0.5*f.lambda*norm(f.x)^2;
-            % f.getd(); f.obj(iter+1) = 0.5*norm(f.A*f.x - f.d)^2;
-            fprintf('iter: %d, obj: %7.4e\n',iter,f.obj(iter+1));
+            % f.getd('full'); f.obj(iter+1) = 0.5*norm(f.A*f.x - f.d)^2;
+            if print
+                fprintf('iter: %d, obj: %7.4e\n',iter,f.obj(iter+1));
+            end
         end
         
         % Plot objective function values.
