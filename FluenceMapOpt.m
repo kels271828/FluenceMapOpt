@@ -1,5 +1,5 @@
 classdef FluenceMapOpt < handle
-% Fluence map optimization with OAR dose-volume constraints.
+% Fluence map optimization with dose-volume constraints.
 % 
 % General problem statement:
 % 
@@ -11,14 +11,14 @@ classdef FluenceMapOpt < handle
 %   x >= 0
 %   ||max(0,w_j)||_0 <= nVoxels_j*percent_j/100 for all j in J
 %
-% I = set of planning target volumes (PTVs)
-% J = set of organs-at-risk (OARs)
+% I = set of uniform dose targets (PTVs)
+% J = set of dose-volume constraints (OARs and PTVs)
 %
 % For each organ included in the treatment plan, create a structure
 % containing to following fields:
 %
 %   name: string used in data files
-%   terms: cell containing organ constraint term
+%   terms: cell containing organ constraint terms
 %
 % Each term should have the following fields:
 %
@@ -277,30 +277,91 @@ classdef FluenceMapOpt < handle
         % Constraint generation method.
         function constGen(f)
             
-            [A_dvc,d_dvc] = f.calcConstMats();
+            
+            [A_dvc,d_dvc] = f.calcConstMatBig(f.xInit);
             f.x = lsqlin(f.A_unif,f.d_unif,A_dvc,d_dvc,[],[],f.lb,f.ub);
         end
         
-        % Calculate constraint matrices for dose-volume constraints.
-        function [A_dvc,d_dvc] = calcConstMats(f)
+        % Calculate stacked constraint matrix for dose-volume constraints.
+        function [A_dvc,d_dvc] = calcConstMatBig(f,x)
            
             A_dvc = [];
             d_dvc = [];
             for i = 1:f.nStructs
                 for j = 1:f.structs{i}.nTerms
-                    if strcmp(f.structs{i}.terms{j}.type,'udvc')
-                        [~,idx] = sort(f.structs{i}.A*f.x);
-                        idx_lower = f.structs{i}.nVoxels - f.structs{i}.terms{j}.k;
-                        A_dvc = [A_dvc; f.structs{i}.A(idx(1:idx_lower),:)];
-                        d_dvc = [d_dvc; f.structs{i}.terms{j}.d(idx(1:idx_lower),:)];
-                    elseif strcmp(f.structs{i}.terms{j}.type,'ldvc')
-                        [~,idx] = sort(f.structs{i}.A*f.x);
-                        idx_upper = f.structs{i}.terms{j}.k + 1;
-                        A_dvc = [A_dvc; -f.structs{i}.A(idx(idx_upper:end),:)];
-                        d_dvc = [d_dvc; -f.structs{i}.terms{j}.d(idx(idx_upper:end),:)];
+                    if ~strcmp(f.structs{i}.terms{j}.type,'unif')
+                        [A_temp,d_temp] = calcConstMatSmall(f,x,i,j);
+                        A_dvc = [A_dvc; A_temp];
+                        d_dvc = [d_dvc; d_temp];
                     end
                 end
             end
+        end
+        
+        % Calculate constraint matrix for dose-volume constraint.
+        function [A_dvc,d_dvc] = calcConstMatSmall(f,x,struct,term)
+            
+            [~,idx] = sort(f.structs{struct}.A*x);
+            if strcmp(f.structs{struct}.terms{term}.type,'udvc')
+                idx_lower = f.structs{struct}.nVoxels - f.structs{struct}.terms{term}.k;
+                A_dvc = f.structs{struct}.A(idx(1:idx_lower),:);
+                d_dvc = f.structs{struct}.terms{term}.d(idx(1:idx_lower));
+            elseif strcmp(f.structs{struct}.terms{term}.type,'ldvc')
+                idx_upper = f.structs{struct}.terms{term}.k + 1;
+                A_dvc = -f.structs{struct}.A(idx(idx_upper:end),:);
+                d_dvc = -f.structs{struct}.terms{term}.d(idx(idx_upper:end));
+            else
+                A_dvc = NaN;
+                d_dvc = NaN;
+            end 
+        end
+        
+        % conrad method.
+        function conrad(f,slope)
+            
+            if ~exist('slope','var')
+                slope = 1;
+            end
+
+            % Non-negative least-squares with relaxed OAR constraint
+            cvx_begin quiet
+                variable x1(f.nBeamlts)
+                minimize( sum_square(f.A_unif*x1 - f.d_unif) )
+                subject to
+                    f.lb <= x1;
+                    for i = 1:f.nStructs
+                        for j = 1:f.structs{i}.nTerms
+                            if ~strcmp(f.structs{i}.terms{j}.type,'unif')
+                                A = f.structs{i}.A;
+                                d = f.structs{i}.terms{j}.d;
+                                if strcmp(f.structs{i}.terms{j}.type,'udvc')
+                                    k = f.structs{i}.nVoxels - f.structs{i}.terms{j}.k;
+                                else
+                                    k = f.structs{i}.terms{j}.k;
+                                end
+                                sum(pos(1 + slope*(A*x1 - d))) <= k;
+                            end
+                        end
+                    end
+            cvx_end
+
+            % Non-negative least-squares with hard OAR constraint
+            cvx_begin quiet
+                variable x2(f.nBeamlts)
+                minimize( sum_square(f.A_unif*x2 - f.d_unif) )
+                subject to
+                    f.lb <= x2;
+                    for i = 1:f.nStructs
+                        for j = 1:f.structs{i}.nTerms
+                            if ~strcmp(f.structs{i}.terms{j}.type,'unif')
+                                [A,d] = calcConstMatSmall(f,x1,i,j);
+                                A*x2 <= d;
+                            end
+                        end
+                    end
+            cvx_end
+            
+            f.x = x2;
         end
         
         % Calculate beamlet intensities.
