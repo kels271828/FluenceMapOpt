@@ -1,132 +1,103 @@
 classdef FluenceMapOpt < handle
-% Fluence map optimization with dose-volume constraints.
+% FLUENCEMAPOPT Fluence map optimization with dose-volume constraints.
+%
+%   Problem statement:
 % 
-% General problem statement:
-% 
-% min_(x,w) 
-%   sum(i in I) weight_i/(2*nVoxels_i)*||A_i*x - d_i||_2^2
-%   + sum(j in J) weight_j/(2*nVoxels_j)*||w_j - (A_j*x - d_j)||_2^2
-%   + lambda/2*||x||_2^2
-% s.t. 
-%   x >= 0
-%   ||max(0,w_j)||_0 <= nVoxels_j*percent_j/100 for all j in J
+%   min_(x,w) 
+%       sum(i in I) weight_i/(2*nVoxels_i)*||A_i*x - d_i||_2^2
+%       + sum(j in J) weight_j/(2*nVoxels_j)*||w_j - (A_j*x - d_j)||_2^2
+%       + lambda/2*||x||_2^2
+%   s.t. 
+%       x >= 0
+%       ||max(0,w_j)||_0 <= nVoxels_j*percent_j/100 for all j in J
+%   where
+%       I = set of uniform dose targets
+%       J = set of dose-volume constraints
 %
-% I = set of uniform dose targets (PTVs)
-% J = set of dose-volume constraints (OARs and PTVs)
+%   For each body structure included in the treatment plan, create a
+%   structure with the following fields:
 %
-% For each organ included in the treatment plan, create a structure
-% containing to following fields:
+%       name: string used in data files
+%       terms: cell containing organ constraint terms
 %
-%   name: string used in data files
-%   terms: cell containing organ constraint terms
+%   Each term should have the following fields:
 %
-% Each term should have the following fields:
+%       type: string 'unif', 'ldvc', or 'udvc'
+%       weight: weight coefficient of the term in the objective function
+%       dose: dose in Gy
+%       percent: include if type is 'ldvc' or 'udvc'
+%           
+%           'ldvc': No more than p% receives less than d Gy
+%           'udvc': No more than p% receives more than d Gy
 %
-%   type: string 'unif', 'ldvc', or 'udvc'
-%   dose: dose in Gy
-%   percent: at least (ldvc) or at most (udvc) p% receives at least d Gy
-%   weight: weight coefficient of the term in the objective function    
-%
-% While the general problem statement above only uses uniform dose targest
-% on PTVs and a single dose-volume constraint on OARs, any type of target
-% or constraint(s) can be used on any type of organ. 
-%
-% Written to work with the CORT prostate tumor dataset, but could be
-% modified to work with other datasets. 
+%   Written to work with the CORT prostate tumor dataset, but could be
+%   modified to work with other datasets. 
 
     properties
         % Input parameters
-        structs % body structure to include in plan
-        angles  % gantry angles to include in plan
-        lambda  % L2 regularization coefficient
-        maxIter % maximum number of iterations
-        xInit   % initial x vector (beamlet intensities)
-        overlap % allow overlaps in structures
-        tol     % stopping criteria
+        structs            % Body structures
+        xInit              % Initial beamlet intensities
+        angles = 0:52:358; % Gantry angles
+        lambda = 1e-8;     % L2 regularization coefficient
+        maxIter = 500;     % Maximum number of iterations
+        tol = 1e-3;        % Stopping tolerance
+        overlap = false;   % Allow overlaps in structures
         
         % Internal variables
-        names    % names of structures included in plan
-        nStructs % number of structures included in plan
-        nAngles  % number of angles included in plan
-        nBeamlts % number of beamlets included in plan
-        mask     % for plotting structure contours
-        D        % full dose deposition matrix
-        A        % stacked A matrix (beamlet-to-voxel maps)
-        d        % stacked d vector (doses)
-        H        % Hessian of objective function
-        lb       % lower bound for beamlets
-        ub       % upper bound for beamlets
-        nIter    % number of iterations used
+        names    % Body structure names
+        mask     % Body structure contours
+        D        % Full beamlet-to-voxel matrix
         
-        % Constraint generation variables
-        A_unif
-        d_unif
-        H_unif
+        nStructs % Number of structures
+        nAngles  % Number of angles
+        nBeamlts % Bumber of beamlets
+        
+        
+        
+        A        % Stacked beamlet-to-voxel matrix
+        d        % Stacked dose vector
+        H        % Hessian of objective function
+        A_unif   % Stacked beamlet-to-voxel matrix for uniform dose targets
+        d_unif   % Stacked dose vector for uniform dose targets
+        H_unif   % Stacked Hessian matrix for uniform dose targets
+        lb       % Lower bound for beamlets
+        ub       % Upper bound for beamlets
         
         % Solution variables
-        x   % beamlet intensities
-        obj % objective function values
-        err % error values between w vectors
+        x        % Final beamlet intensities
+        obj      % Objective function values
+        err      % Error values between w vectors
+        nIter    % Number of iterations used
     end
     
     methods
-        % Initialize problem variables.
-        function f = FluenceMapOpt(pars)
-            
-            % Set input variables according to pars and/or default values
-            flag = exist('pars','var');
-            if flag && isfield(pars,'structs')
-                f.structs = pars.structs;
-            else
-                % tumor
-                tt1.type = 'unif'; tt1.dose = 81; tt1.weight = 1;
-                tumor.name = 'PTV_68'; tumor.terms = {tt1};
-                
-                % rectum
-                rt1.type = 'udvc'; rt1.dose = 50; rt1.percent = 50; rt1.weight = 1;
-                rectum.name = 'Rectum'; rectum.terms = {rt1};
-                
-                % default structures
-                f.structs = {tumor,rectum};
-            end
-            if flag && isfield(pars,'angles')
-                f.angles = pars.angles;
-            else
-                f.angles = 0:52:358;
-            end
-            if flag && isfield(pars,'lambda')
-                f.lambda = pars.lambda;
-            else
-                f.lambda = 1e-8;
-            end
-            if flag && isfield(pars,'maxIter')
-                f.maxIter = pars.maxIter;
-            else
-                f.maxIter = 500;
-            end
-            if flag && isfield(pars,'overlap')
-                f.overlap = pars.overlap;
-            else
-                f.overlap = false;
-            end
-            if flag && isfield(pars,'tol')
-                f.tol = pars.tol;
-            else
-                f.tol = 1e-3;
-            end
+        function prob = FluenceMapOpt(structs,varargin)
+        % FLUENCEMAPOPT Initialize problem.
+        
+            % Set input variables
+            if nargin >= 2, prob.angles = varargin{2}; end
+            if nargin >= 3, prob.lambda = varargin{3}; end
+            if nargin >= 4, prob.maxIter = varargin{4}; end
+            if nargin >= 5, prob.tol = varargin{5}; end
+            if nargin == 6, prob.overlap = varargin{6}; end
             
             % Compute internal variables
-            f.nStructs = length(f.structs);
-            f.nAngles = length(f.angles);
-            f.getD();
-            f.getStructVars();
-            f.getA('full'); 
+            prob.D = getD(prob.angles);
+            prob.structs = getStructVars(structs,prob.overlap,prob.D);
+            prob.names = getNames(prob.structs);
+            prob.mask = getMaskStruct(prob.names,prob.overlap);
+               
+            prob.nStructs = length(prob.structs);
+            prob.nAngles = length(prob.angles);
+            prob.nBeamlts = size(prob.D,2);
             
-            % Set initial beamlets
-            if flag && isfield(pars,'xInit')
-                f.xInit = pars.xInit;
+            prob.getA('full'); 
+            
+            % Compute initial beamlets
+            if nargin >= 1
+                prob.xInit = varargin{1};
             else
-                f.initX();
+                prob.xInit = prob.getInitX();
             end
             
             % Set solution variables if given
@@ -140,64 +111,6 @@ classdef FluenceMapOpt < handle
             end
             if flag && isfield(pars,'nIter')
                 f.nIter = pars.nIter;
-            end
-        end
-        
-        % Get full dose deposition matrix.
-        function getD(f)
-            
-            temp = [];
-            for i = f.angles
-                load(['Gantry' int2str(i) '_Couch0_D.mat']);
-                temp = [temp D];
-            end
-            f.D = temp;
-            f.nBeamlts = size(f.D,2);
-        end
-        
-        % Get structure-specific variables.
-        function getStructVars(f)
-            
-            body = 0;
-            f.names = cell(1,f.nStructs);
-            vPrev = [];
-            for i = 1:f.nStructs
-                if strcmp(f.structs{i}.name,'BODY')
-                    body = 1;
-                end
-                load([f.structs{i}.name '_VOILIST.mat']);
-                if ~f.overlap
-                    if i == 1
-                        vPrev = v;
-                    else
-                        v = setdiff(v,vPrev);
-                        vPrev = union(v,vPrev);
-                    end
-                end
-                f.mask{i} = zeros(184*184*90,1);
-                f.mask{i}(v) = 1;
-                f.mask{i} = reshape(f.mask{i},184,184,90);
-                f.names{i} = f.structs{i}.name;
-                f.structs{i}.nVoxels = length(v); 
-                f.structs{i}.A = f.D(v,:);
-                f.structs{i}.nTerms = length(f.structs{i}.terms);
-                for j = 1:f.structs{i}.nTerms
-                    f.structs{i}.terms{j}.d = f.structs{i}.terms{j}.dose*ones(f.structs{i}.nVoxels,1);
-                    f.structs{i}.terms{j}.step = f.structs{i}.nVoxels/f.structs{i}.terms{j}.weight;
-                    if strcmp(f.structs{i}.terms{j}.type,'ldvc')
-                        % k = number of voxels allowed to be <= dose
-                        f.structs{i}.terms{j}.k = round((100 - f.structs{i}.terms{j}.percent)*f.structs{i}.nVoxels/100);
-                    elseif strcmp(f.structs{i}.terms{j}.type,'udvc')
-                        % k = number of voxels allowed to be >= dose
-                        f.structs{i}.terms{j}.k = round((f.structs{i}.terms{j}.percent)*f.structs{i}.nVoxels/100);
-                    end
-                end
-            end
-            if ~body
-                load(['BODY_VOILIST.mat'])
-                f.mask{i+1} = zeros(184*184*90,1);
-                f.mask{i+1}(v) = 1;
-                f.mask{i+1} = reshape(f.mask{i+1},184,184,90);
             end
         end
         
@@ -910,5 +823,84 @@ classdef FluenceMapOpt < handle
             pars.nIter = f.nIter;
             save(str,'pars');
         end
+    end
+end
+
+function D = getD(angles)
+% GETD Get full beamlet-to-voxel matrix.
+
+    temp = [];
+    for ii = angles
+        load(['Gantry' int2str(ii) '_Couch0_D.mat']);
+        temp = [temp D];
+    end
+    D = temp;
+end
+
+function [v,vPrev] = removeOverlap(v,vPrev)
+% REMOVEOVERLAP Remove overlapping voxels from body structure.
+
+   if isempty(vPrev)
+       vPrev = v;
+   else
+       v = setdiff(v,vPrev);
+       vPrev = union(v,vPrev);
+   end 
+end
+
+function structs = getStructVars(structs,overlap,D)
+% GETSTRUCTVARS Get structure-specific variables.
+
+    vPrev = [];
+    for ii = 1:length(structs)
+        load(structs{ii}.name '_VOILIST.mat']);
+        if ~overlap, [v,vPrev] = removeOverlap(v,vPrev); end
+        structs{ii}.A = D(v,:);
+        structs{ii}.terms = getTermVars(structs{ii}.terms,length(v));
+    end
+end
+
+function terms = getTermVars(terms,nVoxels)
+% GETTERMVARS Get term-specific variables.
+
+    for ii = 1:length(terms)
+       terms{ii}.d = terms{ii}.dose*ones(nVoxels,1);
+       terms{ii}.step = nVoxels/terms{ii}.weight;
+       if ~strcmp(terms{ii}.type,'udvc')
+           terms{ii}.k = floor(terms{ii}.percent*nVoxels/100);
+       end
+    end
+end
+
+function names = getNames(structs)
+% GETNAMES Get body structure names.
+
+    nStructs = length(structs);
+    names = cell(1,nStructs);
+    for ii = 1:nStructs
+        names{ii} = prob.structs{ii}.name;
+    end
+end
+
+function mask = getMask(v)
+% GETMASK Get body structure contour for one organ.
+
+    mask = zeros(184*184*90,1);
+    mask(v) = 1;
+    mask = reshape(mask,184,184,90);
+end
+
+function mask = getMaskStruct(names,overlap)
+% GETMASKSTRUCT Get body structure contours for all organs.
+
+    vPrev = [];
+    for ii = 1:length(names)
+       load([names{ii} '_VOILIST.mat']);
+       if ~overlap, [v,vPrev] = removeOverlap(v,vPrev); end
+       mask{ii} = getMask(v);
+    end
+    if ~any(strcmp(names,'BODY'))
+        load('BODY_VOILIST.mat');
+        mask{ii+1} = getMask(v);
     end
 end
