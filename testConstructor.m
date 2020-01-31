@@ -7,11 +7,11 @@ end
 
 function setupOnce(testCase)
     unif = struct('name','PTV_68');
-    unif.terms = {struct('type','unif','dose',81,'weight',1)};
+    unif.terms = {struct('type','unif','dose',80,'weight',1)};
     ldvc = struct('name','PTV_56');
-    ldvc.terms = {struct('type','ldvc','dose',60,'percent',60,'weight',1)};
+    ldvc.terms = {struct('type','ldvc','dose',60,'percent',15,'weight',1)};
     udvc = struct('name','Rectum');
-    udvc.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
+    udvc.terms = {struct('type','udvc','dose',30,'percent',15,'weight',1)};
     testCase.TestData.structs = {unif,ldvc,udvc};
     testCase.TestData.prob = FluenceMapOpt(testCase.TestData.structs);
 end
@@ -23,9 +23,9 @@ function testDefaultParameters(testCase)
         assert(prob.angles(ii) == defaultAngles(ii),'Incorrect angle')
     end
     assert(prob.lambda == 1e-8,'Incorrect lambda')
-    assert(prob.maxIter == 500,'Incorrect maxIter')
-    assert(prob.tol == 1e-3,'Incorrect tol')
     assert(prob.overlap == false,'Incorrect overlap')
+    assert(prob.tol == 1e-3,'Incorrect tol')
+    assert(prob.maxIter == 500,'Incorrect maxIter')
     assert(prob.nStructs == 3,'Incorrect number of structures')
     assert(prob.nAngles == 7,'Incorrect number of angles')
 end
@@ -35,9 +35,9 @@ function testVararginParameters(testCase)
     prob = FluenceMapOpt(structs,[],0,1,2,3,4);
     assert(prob.angles == 0,'Incorrect angles')
     assert(prob.lambda == 1,'Incorrect lambda')
-    assert(prob.maxIter == 2,'Incorrect maxIter')
+    assert(prob.overlap == 2,'Incorrect overlap')
     assert(prob.tol == 3,'Incorrect tol')
-    assert(prob.overlap == 4,'Incorrect overlap')
+    assert(prob.maxIter == 4,'Incorrect maxIter')
 end
 
 function testSizeD(testCase)
@@ -105,7 +105,9 @@ function testInitX(testCase)
         prob.nBeamlts,'unif');
     d = FluenceMapOpt.getd(prob.structs,prob.lambda,prob.nStructs,...
         prob.nBeamlts,'unif');
-    xInit = FluenceMapOpt.getInitX(A,d,lb,ub);
-    percentOver = sum(prob.structs{3}.A*xInit > 30)/prob.structs{3}.nVoxels;
-    assert(abs(percentOver - 0.6470) < 1e-2)
+    x0 = FluenceMapOpt.projX(A,d,lb,ub);
+    percentUnder = sum(prob.structs{2}.A*x0 < 60)/prob.structs{2}.nVoxels;
+    assert(abs(percentUnder - 0.8690) < 1e-4,'Incorrect initialization')
+    percentOver = sum(prob.structs{3}.A*x0 > 30)/prob.structs{3}.nVoxels;
+    assert(abs(percentOver - 0.6579) < 1e-4,'Incorrect initialization')
 end

@@ -36,8 +36,6 @@ classdef FluenceMapOpt < handle
         structs            % Body structures
         angles = 0:52:358; % Gantry angles
         lambda = 1e-8;     % L2 regularization coefficient
-        maxIter = 500;     % Maximum number of iterations
-        tol = 1e-3;        % Stopping tolerance
         overlap = false;   % Allow overlaps in structures
         nStructs           % Number of body structures
         nAngles            % Number of angles
@@ -45,22 +43,24 @@ classdef FluenceMapOpt < handle
     end
     
     properties (Access = private)
-        D        % Full beamlet-to-voxel matrix
-        A        % Stacked beamlet-to-voxel matrix
-        Au       % Stacked beamlet-to-voxel matrix for uniform terms
-        du       % Stacked dose vector for uniform terms
-        lb       % Lower bound for beamlets
-        ub       % Upper bound for beamlets
-        xInit    % Initial beamlet intensities
-        names    % Body structure names
-        mask     % Body structure contours for plotting     
+        D     % Full beamlet-to-voxel matrix
+        A     % Stacked beamlet-to-voxel matrix
+        Au    % Stacked beamlet-to-voxel matrix for uniform target terms
+        du    % Stacked dose vector for uniform target terms
+        lb    % Lower bound for beamlets
+        ub    % Upper bound for beamlets
+        names % Body structure names
+        mask  % Body structure contours for plotting     
     end
 
     properties
-        x        % Final beamlet intensities
-%         obj      % Objective function values
-%         err      % Error values between w vectors
-%         nIter    % Number of iterations used
+        x0             % Initial beamlet intensities
+        x              % Final beamlet intensities
+        obj            % Objective function values
+        wDiff          % Convergence criteria
+        nIter          % Number of iterations used
+        tol = 1e-3;    % Stopping tolerance
+        maxIter = 500; % Maximum number of iterations
     end
     
     methods
@@ -70,7 +70,7 @@ classdef FluenceMapOpt < handle
             %   prob = FluenceMapOpt(structs)
             %       Initialize problem with default parameters.
             %
-            %   prob = FluenceMapOpt(structs,xInit,angles,lambda,maxIter,tol,overlap)
+            %   prob = FluenceMapOpt(structs,xInit,angles,lambda,overlap,tol,maxIter)
             %       Initialize problem with optional arguments.
         
             % Set input variables
@@ -99,26 +99,13 @@ classdef FluenceMapOpt < handle
             
             % Compute initial beamlets
             if nargin > 1
-                prob.xInit = varargin{1};
+                prob.x0 = varargin{1};
             else
-                prob.xInit = FluenceMapOpt.getInitX(prob.Au,prob.du,...
-                    prob.lb,prob.ub);
+                prob.x0 = FluenceMapOpt.projX(prob.Au,prob.du,prob.lb,prob.ub);
             end
         end
         
-        function setInputVars(prob,args,nArgs)
-            % SETINPUTVARS Set input variables.
-            varNames = {'angles','lambda','maxIter','tol','overlap'};
-            for ii = 1:length(varNames)
-               if nArgs > ii
-                   if ~isempty(args{ii+1})
-                       prob.(varNames{ii}) = args{ii+1};
-                   end
-               end
-            end
-        end
-        
-        % in progress...
+        % need to test...
         function calcBeamlets(prob,varargin)
             % CALCBEAMLETS Calculate beamlet intensities.
             %
@@ -135,116 +122,31 @@ classdef FluenceMapOpt < handle
             
             % Fluence map optimization
             prob.initProb(print);
-           
-%             for t = 1:prob.maxIter
-% 
-%                 % Update x
-%                 prob.projX();
-%                 
-%                 % Update w
-%                 errorSum = 0;
-%                 for ii = 1:length(f.structs)
-%                     for jj = 1:length(prob.structs{ii}.terms)
-%                         if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-%                             
-%                             % Update wPrev
-%                             wPrev = prob.structs{ii}.terms{jj}.w;
-%                             
-%                             % Update w
-%                             Axmd = prob.structs{ii}.A*f.x - f.structs{ii}.terms{jj}.d;
-%                             coeff = f.structs{ii}.terms{jj}.step*f.structs{ii}.terms{jj}.weight/f.structs{ii}.nVoxels;
-%                             temp = f.structs{ii}.terms{jj}.w + coeff*(Axmd - f.structs{ii}.terms{jj}.w);
-%                             s = strcmp(f.structs{ii}.terms{jj}.type,'ldvc');
-%                             f.structs{ii}.terms{jj}.w = (-1)^s*f.projW((-1)^s*temp,f.structs{ii}.terms{jj}.k);
-%                             
-%                             % Error sum
-%                             errorSum = errorSum + norm(f.structs{ii}.terms{jj}.w - wPrev)/f.structs{ii}.terms{jj}.step;  
-%                         end
-%                     end
-%                 end
-%                 prob.err(t) = errorSum;
-%                 prob.nIter = t;
-%                 prob.calcObj(t,print);
-% 
-%                 % Stopping criteria
-%                 if errorSum <= prob.tol
-%                     break
-%                 end
-        end
-        
-        % in progress...
-        function initProb(prob,print)
-            % INITPROB Initialize x, w, and objective values.
-        
-            prob.x = prob.xInit;
-            prob.initW();
-            
-%             % Initialize objective function values
-%             f.obj = zeros(1,f.maxIter+1);
-%             f.err = zeros(1,f.maxIter);
-%             for i = 1:f.nStructs
-%                 for j = 1:f.structs{i}.nTerms
-%                     f.structs{i}.terms{j}.obj = zeros(1,f.maxIter+1);
-%                     if ~strcmp(f.structs{i}.terms{j}.type,'unif')
-%                         f.structs{i}.terms{j}.vdiff = zeros(1,f.maxIter+1);
-%                         f.structs{i}.terms{j}.wdiff = zeros(1,f.maxIter+1);
-%                     end
-%                 end
-%             end
-%             
-%             % Calculate and print initial objective value
-%             f.calcObj(0,print)
-        end
-        
-        % need to test...
-        function initW(prob)
-            % INITW Initialize w vectors for dose-volume constraint terms.
-            for ii = 1:length(prob.structs)
-               for jj = 1:length(prob.structs{ii}.terms)
-                   if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-                       initDose = prob.structs{ii}.A*f.x;
-                       diff = initDose - prob.structs{ii}.terms{jj}.d;
-                       s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
-                       w = projW((-1)^s*diff,prob.structs{ii}.terms{jj}.k);
-                       prob.structs{ii}.terms{jj}.w = (-1)^s*w;
-                   end
-               end
-            end
-        end
-        
-        % in progress...
-        function calcObj(prob,iter,print)
-            % CALCOBJ Calculate and print objective function value. 
-            for ii = 1:length(prob.structs)
-                for jj = 1:length(prob.structs{ii}.terms)
-                    dose = prob.structs{ii}.A*prob.x;
-                    diff = dose - prob.structs{ii}.terms{jj}.d;
-                    if strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-                        % do something
-                    else
-                        % do something else
+            for kk = 1:prob.maxIter
+                
+                % Update x and w vectors
+                prob.updateX();
+                wDiffSum = 0;
+                for ii = 1:prob.nStructs
+                    for jj = 1:prob.structs{ii}.nTerms
+                        if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                            wDiffSum = wDiffSum + prob.updateW(ii,jj);
+                        end
                     end
                 end
-            end
-            
-            for i = 1:f.nStructs
-                for j = 1:f.structs{i}.nTerms
-                    Axmd = f.structs{i}.A*f.x - f.structs{i}.terms{j}.d;
-                    if strcmp(f.structs{i}.terms{j}.type,'unif')
-                        f.structs{i}.terms{j}.obj(iter+1) = f.structs{i}.terms{j}.weight*norm(Axmd)^2/(2*f.structs{i}.nVoxels);
-                    else
-                        s = strcmp(f.structs{i}.terms{j}.type,'ldvc');
-                        f.structs{i}.terms{j}.vdiff(iter+1) = 100*sum((-1)^s*Axmd > 0)/f.structs{i}.nVoxels;
-                        f.structs{i}.terms{j}.wdiff(iter+1) = 100*sum((-1)^s*f.structs{i}.terms{j}.w > 0)/f.structs{i}.nVoxels;
-                        f.structs{i}.terms{j}.obj(iter+1) = f.structs{i}.terms{j}.weight*norm(Axmd - f.structs{i}.terms{j}.w)^2/(2*f.structs{i}.nVoxels);
-                    end
-                    f.obj(iter+1) = f.obj(iter+1) + f.structs{i}.terms{j}.obj(iter+1);
+                
+                % Calculate objective
+                prob.nIter = kk;
+                prob.calcObj(kk,print);
+                prob.wDiff(kk) = wDiffSum;
+                if print
+                    fprintf(', wDiff: %7.4e\n',wDiffSum);
                 end
-            end
-            f.obj(iter+1) = f.obj(iter+1) + 0.5*f.lambda*norm(f.x)^2;
-            % f.getd('full'); f.obj(iter+1) = 0.5*norm(f.A*f.x - f.d)^2;
-            if print
-                fprintf('iter: %d, obj: %7.4e\n',iter,f.obj(iter+1));
+                
+                % Check convergence
+                if wDiffSum <= prob.tol
+                    break
+                end
             end
         end
         
@@ -338,22 +240,7 @@ classdef FluenceMapOpt < handle
 %             
 %             f.x = x2;
 %         end
-%         
-% 
-%         
-%         % Solve non-negative least-squares problem for x.
-%         function projX(f)
-%             
-%             f.getd('full');
-%             F = -f.A'*f.d;
-%             fun = @(x)f.quadObj(x,f.H,F);
-%             options.verbose = 0;
-%             options.method = 'newton';
-%             f.x = minConf_TMP(fun,f.x,f.lb,f.ub,options);
-%         end
-%         
-%         
-%         
+%
 %         % Plot objective function values.
 %         function plotObj(f)
 %             
@@ -766,7 +653,120 @@ classdef FluenceMapOpt < handle
         end
     end
     
-    methods (Static)
+    methods (Hidden)
+        function setInputVars(prob,args,nArgs)
+            % SETINPUTVARS Set input variables.
+            varNames = {'angles','lambda','overlap','tol','maxIter'};
+            for ii = 1:length(varNames)
+               if nArgs > ii
+                   if ~isempty(args{ii+1})
+                       prob.(varNames{ii}) = args{ii+1};
+                   end
+               end
+            end
+        end 
+        
+        function initProb(prob,print)
+            % INITPROB Initialize x, w, and objective values.
+            prob.x = prob.x0;
+            prob.initW();
+            prob.initObj();
+            prob.calcObj(0,print);
+        end
+
+        function initW(prob)
+            % INITW Initialize w vectors for dose-volume constraint terms.
+            for ii = 1:prob.nStructs
+                for jj = 1:prob.structs{ii}.nTerms
+                    if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                        initDose = prob.structs{ii}.A*prob.x0;
+                        res = initDose - prob.structs{ii}.terms{jj}.d;
+                        s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
+                        k = prob.structs{ii}.terms{jj}.k;
+                        w = FluenceMapOpt.projW((-1)^s*res,k);
+                        prob.structs{ii}.terms{jj}.w = w;
+                   end
+                end
+            end
+        end
+        
+        function initObj(prob)
+            % INITOBJ Initialize objective function values
+            myZeros = zeros(1,prob.maxIter+1);
+            prob.obj = myZeros;
+            prob.wDiff = myZeros(1:end-1);
+            for ii = 1:prob.nStructs
+                for jj = prob.structs{ii}.nTerms
+                    prob.structs{ii}.terms{jj}.obj = myZeros;
+                    if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                        prob.structs{ii}.terms{jj}.resPos = myZeros;
+                        prob.structs{ii}.terms{jj}.wPos = myZeros;
+                    end
+                end
+            end
+        end
+        
+        function calcObj(prob,iter,print)
+            % CALCOBJ Calculate and print objective function values.
+            for ii = 1:prob.nStructs
+                nVoxels = prob.structs{ii}.nVoxels;
+                for jj = 1:prob.structs{ii}.nTerms
+                    weight = prob.structs{ii}.terms{jj}.weight;
+                    dose = prob.structs{ii}.A*prob.x;
+                    res = dose - prob.structs{ii}.terms{jj}.d;
+                    if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                        s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
+                        resPos = 100*sum((-1)^s*res > 0)/nVoxels;
+                        prob.structs{ii}.terms{jj}.dPos(iter+1) = resPos;
+                        wPos = 100*sum(prob.structs{ii}.terms{jj}.w > 0)/nVoxels;
+                        prob.structs{ii}.terms{jj}.wPos(iter+1) = wPos;
+                        res = res - prob.structs{ii}.terms{jj}.w; 
+                    end
+                    termObj = weight*norm(res)^2/(2*nVoxels);
+                    prob.structs{ii}.terms{jj}.obj(iter+1) = termObj;
+                    prob.obj(iter+1) = prob.obj(iter+1) + termObj;
+                end
+            end
+            prob.obj(iter+1) = prob.obj(iter+1) + prob.lambda*norm(prob.x)^2/2;
+            if print
+                fprintf('iter: %d, obj: %7.4e',iter,prob.obj(iter+1));
+                if iter == 0
+                    fprintf('\n');
+                end
+            end 
+        end
+        
+        function updateX(prob)
+            % UPDATEX Update beamlet intensities.
+            d = FluenceMapOpt.getd(prob.structs,prob.lambda,...
+                prob.nStructs,prob.nBeamlts);
+            prob.x = FluenceMapOpt.projX(prob.A,d,prob.lb,prob.ub);
+        end
+        
+        % need to test...
+        function wDiff = updateW(prob,ii,jj)
+            % UPDATEW Update proxy variable.
+            
+            % Grab variables
+            s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
+            k = prob.structs{ii}.terms{jj}.k;
+            step = prob.structs{ii}.terms{jj}.step;
+            coeff = step/prob.structs{ii}.nVoxels;
+            
+            % Calculate gradient step
+            dose = prob.structs{ii}.A*prob.x;
+            res = (-1)^s*(dose - prob.structs{ii}.terms{jj}.d);
+            wPrev = prob.structs{ii}.terms{jj}.w;
+            wStep = wPrev + coeff*(res - wPrev);
+            
+            % Project onto set ||(w)_+||_0 <= k
+            wProj = FluenceMapOpt.projW(wStep,k);
+            wDiff = norm(wProj - wPrev)/step;
+            prob.structs{ii}.terms{jj}.w = wProj;
+        end
+    end
+    
+    methods (Hidden, Static)
         function [D,nBeamlts] = getD(angles)
             % GETD Get full beamlet-to-voxel matrix.
             temp = [];
@@ -933,13 +933,12 @@ classdef FluenceMapOpt < handle
             end
         end
 
-        function x = getInitX(A,d,lb,ub)
-            % GETINITX Initialze beamlets.
+        function x = projX(A,d,lb,ub)
+            % PROJX Solve non-negative least-squares problem for beamlets.
             options = optimoptions(@lsqlin,'Display','off');
             x = lsqlin(A,d,[],[],[],[],lb,ub,[],options);
         end
 
-        % need to test...
         function w = projW(w,k)
             % PROJW Project w onto the set satisfying ||max(0,w)||_0 <= k.
             idxPos = w > 0;
@@ -950,6 +949,5 @@ classdef FluenceMapOpt < handle
                 w(idxPos) = wPos;
             end
         end
-        
     end
 end
