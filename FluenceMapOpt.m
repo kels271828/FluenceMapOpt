@@ -30,7 +30,7 @@ classdef FluenceMapOpt < handle
     %           * 'udvc': No more than p% receives more than d Gy
     %
     %   Written to work with the CORT prostate tumor dataset, but could be
-    %   modified to work with other datasets. 
+    %   modified to work with other datasets.r
     
     properties (SetAccess = private)
         structs            % Body structures
@@ -59,6 +59,7 @@ classdef FluenceMapOpt < handle
         obj            % Objective function values
         wDiff          % Convergence criteria
         nIter          % Number of iterations used
+        time           % Time to compute solution (seconds)
         tol = 1e-3;    % Stopping tolerance
         maxIter = 500; % Maximum number of iterations
     end
@@ -98,7 +99,8 @@ classdef FluenceMapOpt < handle
                 prob.nStructs,prob.nBeamlts,'unif');
             
             % Compute initial beamlets
-            if nargin > 1
+            if nargin > 1 && ~isempty(varargin{1})
+                disp('here')
                 prob.x0 = varargin{1};
             else
                 prob.x0 = FluenceMapOpt.projX(prob.Au,prob.du,prob.lb,prob.ub);
@@ -121,6 +123,7 @@ classdef FluenceMapOpt < handle
             end
             
             % Fluence map optimization
+            tic;
             prob.initProb(print);
             for kk = 1:prob.maxIter
                 
@@ -145,511 +148,166 @@ classdef FluenceMapOpt < handle
                 
                 % Check convergence
                 if wDiffSum <= prob.tol
+                    prob.time = toc;
+                    prob.obj = prob.obj(1:prob.nIter+1);
+                    prob.wDiff = prob.wDiff(1:prob.nIter);
                     break
                 end
             end
         end
         
-        function notYetChecked(prob)
-%         % Constraint generation method.
-%         function constGen(f)
-%             
-%             
-%             [A_dvc,d_dvc] = f.calcConstMatBig(f.xInit);
-%             f.x = lsqlin(f.A_unif,f.d_unif,A_dvc,d_dvc,[],[],f.lb,f.ub);
-%         end
-%         
-%         % Calculate stacked constraint matrix for dose-volume constraints.
-%         function [A_dvc,d_dvc] = calcConstMatBig(f,x)
-%            
-%             A_dvc = [];
-%             d_dvc = [];
-%             for i = 1:f.nStructs
-%                 for j = 1:f.structs{i}.nTerms
-%                     if ~strcmp(f.structs{i}.terms{j}.type,'unif')
-%                         [A_temp,d_temp] = calcConstMatSmall(f,x,i,j);
-%                         A_dvc = [A_dvc; A_temp];
-%                         d_dvc = [d_dvc; d_temp];
-%                     end
-%                 end
-%             end
-%         end
-%         
-%         % Calculate constraint matrix for dose-volume constraint.
-%         function [A_dvc,d_dvc] = calcConstMatSmall(f,x,struct,term)
-%             
-%             [~,idx] = sort(f.structs{struct}.A*x);
-%             if strcmp(f.structs{struct}.terms{term}.type,'udvc')
-%                 idx_lower = f.structs{struct}.nVoxels - f.structs{struct}.terms{term}.k;
-%                 A_dvc = f.structs{struct}.A(idx(1:idx_lower),:);
-%                 d_dvc = f.structs{struct}.terms{term}.d(idx(1:idx_lower));
-%             elseif strcmp(f.structs{struct}.terms{term}.type,'ldvc')
-%                 idx_upper = f.structs{struct}.terms{term}.k + 1;
-%                 A_dvc = -f.structs{struct}.A(idx(idx_upper:end),:);
-%                 d_dvc = -f.structs{struct}.terms{term}.d(idx(idx_upper:end));
-%             else
-%                 A_dvc = NaN;
-%                 d_dvc = NaN;
-%             end 
-%         end
-%         
-%         % conrad method.
-%         function conrad(f,slope)
-%             
-%             if ~exist('slope','var')
-%                 slope = 1;
-%             end
-% 
-%             % Non-negative least-squares with relaxed OAR constraint
-%             cvx_begin quiet
-%                 variable x1(f.nBeamlts)
-%                 minimize( sum_square(f.A_unif*x1 - f.d_unif) )
-%                 subject to
-%                     f.lb <= x1;
-%                     for i = 1:f.nStructs
-%                         for j = 1:f.structs{i}.nTerms
-%                             if ~strcmp(f.structs{i}.terms{j}.type,'unif')
-%                                 A = f.structs{i}.A;
-%                                 d = f.structs{i}.terms{j}.d;
-%                                 if strcmp(f.structs{i}.terms{j}.type,'udvc')
-%                                     k = f.structs{i}.nVoxels - f.structs{i}.terms{j}.k;
-%                                 else
-%                                     k = f.structs{i}.terms{j}.k;
-%                                 end
-%                                 sum(pos(1 + slope*(A*x1 - d))) <= k;
-%                             end
-%                         end
-%                     end
-%             cvx_end
-% 
-%             % Non-negative least-squares with hard OAR constraint
-%             cvx_begin quiet
-%                 variable x2(f.nBeamlts)
-%                 minimize( sum_square(f.A_unif*x2 - f.d_unif) )
-%                 subject to
-%                     f.lb <= x2;
-%                     for i = 1:f.nStructs
-%                         for j = 1:f.structs{i}.nTerms
-%                             if ~strcmp(f.structs{i}.terms{j}.type,'unif')
-%                                 [A,d] = calcConstMatSmall(f,x1,i,j);
-%                                 A*x2 <= d;
-%                             end
-%                         end
-%                     end
-%             cvx_end
-%             
-%             f.x = x2;
-%         end
-%
-%         % Plot objective function values.
-%         function plotObj(f)
-%             
-%             figure()
-%             myLines = lines;
-%            
-%             % Objective function
-%             subplot(2,2,1)
-%             plot(0:f.nIter,f.obj(1:f.nIter+1),'Color',[0.5,0.5,0.5])
-%             xlabel('Iteration (k)')
-%             ylabel('Objective Value')
-%             
-%             % Convergence of w variables
-%             subplot(2,2,3)
-%             plot(1:f.nIter,f.err(1:f.nIter),'Color',[0.5,0.5,0.5])
-%             xlabel('Iteration (k)')
-%             ylabel('Convergence Criteria')
-%             
-%             for i = 1:f.nStructs
-%                 for j = 1:length(f.structs{i}.terms)
-%                     % Objective function terms
-%                     subplot(2,2,2), hold on
-%                     plot(0:f.nIter,f.structs{i}.terms{j}.obj(1:f.nIter+1),'Color',myLines(i,:));
-%             
-%                     % Voxels under or over dose constraints
-%                     if ~strcmp(f.structs{i}.terms{j}.type,'unif')
-%                         subplot(2,2,4), hold on
-%                         plot(0:f.nIter,f.structs{i}.terms{j}.vdiff(1:f.nIter+1),'Color',myLines(i,:));
-%                         plot(0:f.nIter,f.structs{i}.terms{j}.wdiff(1:f.nIter+1),'--','Color',myLines(i,:));
-%                     end
-%                 end
-%             end
-%             subplot(2,2,2)
-%             xlabel('Iteration (k)')
-%             ylabel('Objective Terms')
-%             legend(f.names,'Location','NorthEast')
-%             
-%             subplot(2,2,4)
-%             xlabel('Iteration (k)')
-%             ylabel('% Voxels Exceeding Dose')
-%         end
-%         
-%         % Plot objective function values (fig 8).
-%         function plotObjPaper(f)
-%             
-%             myLines = lines;
-%            
-%             % Objective function
-%             figure(1)
-%             subplot(3,1,1)
-%             plot(0:f.nIter,f.obj(1:f.nIter+1),'Color',[0.5,0.5,0.5],'LineWidth',3)
-%             f.adjustAxis(gca)
-%             
-%             % Objective terms
-%             for i = 1:f.nStructs
-%                 for j = 1:length(f.structs{i}.terms)
-%                     figure(1)
-%                     subplot(3,1,i+1)
-%                     plot(0:f.nIter,f.structs{i}.terms{j}.obj(1:f.nIter+1),'Color',myLines(i,:),'LineWidth',3);
-%                     f.adjustAxis(gca)
-%             
-%                     % Voxels under or over dose constraints
-%                     if ~strcmp(f.structs{i}.terms{j}.type,'unif')
-%                         figure(2), hold on
-%                         subplot(2,1,2)
-%                         plot(0:f.nIter,f.structs{i}.terms{j}.vdiff(1:f.nIter+1),'Color',myLines(i,:),'LineWidth',3);
-%                         f.adjustAxis(gca)
-%                         set(gca,'YTick',52:2:56);
-%                     end
-%                 end
-%             end
-%             
-%             figure(2)
-%             subplot(2,1,1)
-%             plot(1:f.nIter,f.err(1:f.nIter),'Color',[0.5,0.5,0.5],'LineWidth',3)
-%             f.adjustAxis(gca);
-%         end   
-%         
-%         % Readjust axes limits.
-%         function adjustAxis(~,g)
-%             
-%             axis tight
-%             yVals = g.YLim;
-%             yPad = 0.1*(yVals(2) - yVals(1));
-%             g.YLim = [yVals(1)-yPad yVals(2)+yPad];
-%             g.XTick = 0:50:200;
-%             g.XTickLabels = {};
-%             g.YTickLabels = {};
-%             g.LineWidth = 2;      
-%         end
-%         
-%         % Calculate and plot dose-volume histogram of solution.
-%         function plotDVH(f)
-%             
-%             myLines = lines;
-%             
-%             % Calculate dose-volume histograms
-%             doses = linspace(0,100,1000);
-%             dvhInit = zeros(f.nStructs,length(doses));
-%             dvhFinal = zeros(f.nStructs,length(doses));
-%             for i = 1:f.nStructs
-%                 doseInit = f.structs{i}.A*f.xInit;
-%                 doseFinal = f.structs{i}.A*f.x;
-%                 for j = 1:length(doses)
-%                     dvhInit(i,j) = 100*sum(doseInit > doses(j))/f.structs{i}.nVoxels;
-%                     dvhFinal(i,j) = 100*sum(doseFinal > doses(j))/f.structs{i}.nVoxels;
-%                 end
-%             end
-%             
-%             % Plot dose-volume histograms
-%             figure(), hold on
-%             
-%             legendHandles = [];
-%             legendNames = {};
-%             for i = 1:f.nStructs
-%                 for j = 1:length(f.structs{i}.terms)
-%                     if ~strcmp(f.structs{i}.terms{j}.type,'unif') && f.structs{i}.terms{j}.percent == 0
-%                         plot(f.structs{i}.terms{j}.dose,0,'p','MarkerFaceColor',[0.9290 0.6940 0.1250],...
-%                             'MarkerEdgeColor',[0.9290 0.6940 0.1250],'MarkerSize',10);
-%                     else
-%                         if strcmp(f.structs{i}.terms{j}.type,'unif')
-%                             percent = [0 100 100];
-%                         elseif f.structs{i}.terms{j}.percent > 0
-%                             percent = zeros(1,3);
-%                             percent(2:3) = f.structs{i}.terms{j}.percent;
-%                         end
-%                         dose = zeros(1,3);
-%                         dose(1:2) = f.structs{i}.terms{j}.dose;
-%                         plot(dose,percent,':','Color',[0.4 0.4 0.4])
-%                         plot(doses,dvhInit(i,:),'--','Color',myLines(i,:))
-%                         if j == 1
-%                             lineHandle = plot(doses,dvhFinal(i,:),'Color',myLines(i,:));
-%                             lineName = f.structs{i}.name;
-%                             legendHandles = [legendHandles lineHandle];
-%                             legendNames = [legendNames, lineName];
-%                         else
-%                             plot(doses,dvhFinal(i,:),'Color',myLines(i,:))
-%                         end
-%                     end
-%                 end
-%                 
-%                 % Annotations
-%                 legend(legendHandles,legendNames)
-%                 xlabel('Dose (Gy)')
-%                 ylabel('Relative Volume (%)')
-%                 ax = gca;
-%                 ax.XLim = [0 doses(end)];
-%                 ax.YLim = [0 100];
-%                 box on
-%                 axis square
-%             end
-%         end
-%         
-%         % Calculate and plot dose-volume histogram of solution (fig 9,11,12,13).
-%         function plotDVHPaper(f)
-%             
-%             myLines = lines;
-%             
-%             % Calculate dose-volume histograms
-%             doses = linspace(0,100,1000);
-%             dvhInit = zeros(f.nStructs,length(doses));
-%             dvhFinal = zeros(f.nStructs,length(doses));
-%             for i = 1:f.nStructs
-%                 doseInit = f.structs{i}.A*f.xInit;
-%                 doseFinal = f.structs{i}.A*f.x;
-%                 for j = 1:length(doses)
-%                     dvhInit(i,j) = 100*sum(doseInit > doses(j))/f.structs{i}.nVoxels;
-%                     dvhFinal(i,j) = 100*sum(doseFinal > doses(j))/f.structs{i}.nVoxels;
-%                 end
-%             end
-%             
-%             % Plot dose-volume histograms
-%             for i = 1:f.nStructs
-%                 figure(), hold on
-%                 for j = 1:length(f.structs{i}.terms)
-%                     if ~strcmp(f.structs{i}.terms{j}.type,'unif') && f.structs{i}.terms{j}.percent == 0
-%                         plot(f.structs{i}.terms{j}.dose,0,'p','MarkerFaceColor',[0.9290 0.6940 0.1250],...
-%                             'MarkerEdgeColor',[0.9290 0.6940 0.1250],'MarkerSize',10);
-%                     else
-%                         if strcmp(f.structs{i}.terms{j}.type,'unif')
-%                             percent = [0 100 100];
-%                         elseif f.structs{i}.terms{j}.percent > 0
-%                             percent = zeros(1,3);
-%                             percent(2:3) = f.structs{i}.terms{j}.percent;
-%                         end
-%                         dose = zeros(1,3);
-%                         dose(1:2) = f.structs{i}.terms{j}.dose;
-%                         plot(dose,percent,':','Color',[0.4 0.4 0.4],'LineWidth',3)
-%                         plot(doses,dvhInit(i,:),'--','LineWidth',3,'Color',myLines(i,:))
-%                         plot(doses,dvhFinal(i,:),'LineWidth',3,'Color',myLines(i,:))
-%                     end
-%                 end
-%                 
-%                 % Annotations
-%                 ax = gca;
-%                 ax.XLim = [0 doses(end)];
-%                 ax.YLim = [0 100];
-%                 ax.XTick = 0:20:100;
-%                 ax.YTick = 0:20:100;
-%                 ax.XTickLabel = {};
-%                 ax.YTickLabel = {};
-%                 ax.LineWidth = 2;
-%                 box on
-%                 axis square
-%             end
-%         end
-%         
-%         % Plot beamlet intensities.
-%         function plotBeamlets(f)
-%             
-%             figure()
-%             x = f.x;
-%             
-%             for i = 1:f.nAngles
-%                 % Get x and y positions
-%                 [linIdx,nx,ny] = f.getBeamlets(f.angles(i));
-%                 C = zeros(nx,ny);
-%                 C(linIdx) = 1;
-%                 
-%                 % Get beamlet intensities
-%                 xTemp = x(1:length(linIdx));
-%                 x = x(length(linIdx)+1:end);
-%                 B = zeros(nx,ny);
-%                 B(linIdx) = xTemp;
-%                 B = B';
-%                 
-%                 % Plot beamlet intensities
-%                 subplot(1,f.nAngles,i)
-%                 imagesc(B), colormap gray
-%                 title(sprintf('%d^\\circ',f.angles(i)),'Interpreter','tex')
-%                 set(gca,'YDir','normal','XTick',[],'YTick',[])
-%                 caxis([0 max(f.x)])
-%                 axis square
-%             end
-%             p = get(subplot(1,f.nAngles,i),'Position');
-%             cb = colorbar;
-%             cb.Label.String = 'Beamlet Intensity (MU)';
-%             set(subplot(1,f.nAngles,i),'Position',p);
-%         end
-%         
-%         % Plot beamlet intensities (fig 10,14).
-%         function plotBeamletsPaper(f)
-%             
-%             figure()
-%             x = f.x;
-%             
-%             for i = 1:4
-%                 % Get x and y positions
-%                 [linIdx,nx,ny] = f.getBeamlets(f.angles(i));
-%                 
-%                 % Get beamlet intensities
-%                 xTemp = x(1:length(linIdx));
-%                 x = x(length(linIdx)+1:end);
-%                 B = zeros(nx,ny);
-%                 B(linIdx) = xTemp;
-%                 B = B';
-%                 
-%                 % Plot beamlet intensities
-%                 subplot(2,2,i)
-%                 imagesc(B), colormap gray
-%                 set(gca,'YDir','normal','XTick',[],'YTick',[])
-%                 caxis([0 max(f.x)])
-%                 axis square
-%             end
-%             
-%             % Positioning
-%             h = gcf;
-%             pos = h.Position;
-%             h.Position = [pos(1) pos(2) pos(3) pos(3)];
-%             a = subplot(2,2,1);
-%             a.Position = [0.1 0.5 0.3 0.3];
-%             b = subplot(2,2,2);
-%             b.Position = [0.45 0.5 0.3 0.3];
-%             c = subplot(2,2,3);
-%             c.Position = [0.1 0.15 0.3 0.3];
-%             d = subplot(2,2,4);
-%             d.Position = [0.45 0.15 0.3 0.3];
-%             
-%             % Colorbar
-%             e = colorbar('southoutside','Ticks',0:1000:3000,'TickLabels',{},'LineWidth',2);
-%             e.Position = [0.1    0.077    0.65    0.02700];
-%         end
-%         
-%         % Get x and y positions for beamlets.
-%         function [linIdx,nx,ny] = getBeamlets(~,angle)
-%             
-%             load(['Gantry' int2str(angle) '_Couch0_BEAMINFO.mat']);
-%             xIdx = x - min(x) + 1;
-%             yIdx = y - min(y) + 1;
-%             nx = max(xIdx);
-%             ny = max(yIdx);
-%             linIdx = sub2ind([nx,ny],xIdx,yIdx);
-%         end
-%         
-%         % Plot dose with slider for z position.
-%         function plotDose(f)
-%             
-%             figure()
-%             
-%             % Get dose
-%             Dose = reshape(f.D*f.x,184,184,90);
-%             minDose = min(Dose(:));
-%             maxDose = max(Dose(:));
-%             str = 'z = %d';
-%             c = [minDose maxDose];
-%             
-%             % Plot dose and contours
-%             warning('off','MATLAB:contour:ConstantData');
-%             hax = axes('Units','pixels');
-%             imagesc(Dose(:,:,50),'AlphaData',Dose(:,:,50)~=0), hold on
-%             for i = 1:length(f.mask)
-%                 contour(f.mask{i}(:,:,50),1,'k');
-%             end
-%             
-%             % Annotations
-%             title(sprintf(str,50))
-%             caxis(c);
-%             cb = colorbar;
-%             cb.Label.String = 'Dose (Gy)';
-%             axis equal
-%             axis off
-%             hold off
-%             
-%             % Add slider
-%             uicontrol('Style','slider',...
-%                 'Min',1,'Max',90,'Value',50,...
-%                 'Position',[200 20 120 20],...
-%                 'Callback',{@f.whichSlice,hax,Dose,str,c});
-%         end
-%         
-%         % Plot dose at slice 50 (fig 1,5,10,14).
-%         function plotDosePaper(f)
-%             
-%             figure()
-%             idx1 = 40:126;
-%             idx2 = 23:152;
-%             
-%             % Get CT slice
-%             ct = dicomread('CT.2.16.840.1.113662.2.12.0.3173.1271873797.276');
-%             ct = double(imresize(ct,[184,184]));
-%             ct50 = ct(idx1,idx2);
-%             ctShift = ct50 - min(ct50(:));
-%             ctShiftScale = ctShift/max(ctShift(:));
-%             CT50 = repmat(ctShiftScale,[1 1 3]);
-%             
-%             % Get Dose
-%             Dose = reshape(f.D*f.x,184,184,90);
-%             Dose50 = Dose(idx1,idx2,50);
-%             
-%             % Plot CT
-%             body50 = f.mask{end}(idx1,idx2,50);
-%             imagesc(CT50), hold on
-%             
-%             % Plot dose
-%             imagesc(Dose50,'AlphaData',0.3*(body50~=0))
-%             contour(Dose50,0:10:100,'LineWidth',2);
-%             
-%             % Plot organ contours
-%             for i = 1:length(f.mask)-1
-%                contour(f.mask{i}(idx1,idx2,50),1,'k','LineWidth',2); 
-%             end
-%             
-%             % Annotations
-%             caxis([min(Dose50(:)) max(Dose50(:))]);
-%             axis equal
-%             axis off
-%             
-%             % Colorbar
-%             colorbar('southoutside','Ticks',0:20:100,'TickLabels',{},'LineWidth',2)
-%         end
-%         
-%         % Callback function for plotDose() slider.
-%         function whichSlice(f,hObj,~,~,Dose,str,c)
-%             
-%             % Plot dose and contours
-%             z = round(get(hObj,'Value'));
-%             imagesc(Dose(:,:,z),'AlphaData',Dose(:,:,z)~=0), hold on
-%             for i = 1:length(f.mask)
-%                 contour(f.mask{i}(:,:,z),1,'k');
-%             end
-%             
-%             % Annotations
-%             title(sprintf(str,z))
-%             caxis(c);
-%             cb = colorbar;
-%             cb.Label.String = 'Dose (Gy)';
-%             axis equal
-%             axis off   
-%             hold off
-%         end
-%         
-%         % Save results
-%         function saveResults(f,str)
-%             
-%             % Input parameters
-%             pars.structs = f.structs;
-%             pars.angles = f.angles;
-%             pars.lambda = f.lambda;
-%             pars.maxIter = f.maxIter;
-%             pars.xInit = f.xInit;
-%             pars.overlap = f.overlap;
-%             pars.tol = f.tol;
-%             
-%             % Solution variables
-%             pars.x = f.x;
-%             pars.obj = f.obj;
-%             pars.nIter = f.nIter;
-%             save(str,'pars');
-%         end
+        function plotObj(prob)
+            % PLOTOBJ Plot objective function values.
+            
+            figure()
+            
+            % Objective function
+            subplot(1,2,1)
+            plot(0:prob.nIter,prob.obj,'LineWidth',2)
+            xlabel('Iteration (k)')
+            ylabel('Objective Value')
+            
+            % Convergence of proxy variables
+            subplot(1,2,2)
+            plot(1:prob.nIter,prob.wDiff,'LineWidth',2)
+            xlabel('Iteration (k)')
+            ylabel('Convergence Criteria')
+        end
+        
+        function plotDVH(prob)
+            % PLOTDVH Plot dose-volume histogram.
+            
+            % Compute curves and initialize
+            [doses,dvhInit,dvhFinal] = prob.calcDVH();
+            myLines = lines;
+            legendHandles = [];
+            figure(), hold on
+            
+            % Plot curves and targets/constraints
+            for ii = 1:prob.nStructs
+               plot(doses,dvhInit(ii,:),'--','Color',myLines(ii,:),...
+                   'LineWidth',2)
+               for jj = 1:prob.structs{ii}.nTerms
+                   isUnif = strcmp(prob.structs{ii}.terms{jj}.type,'unif');
+                   if ~isUnif && prob.structs{ii}.terms{jj}.percent == 0
+                       % Plot star at maximum dose value
+                       plot(prob.structs{ii}.terms{jj}.dose,0,'p',...
+                           'MarkerFaceColor',[0.9290 0.6940 0.1250],...
+                           'MarkerEdgeColor',[0.9290 0.6940 0.1250],...
+                           'MarkerSize',10);
+                   else
+                       % Get vertical coordinates of targets/constraints
+                       if isUnif
+                           percent = [0 100 100];
+                       elseif prob.structs{ii}.terms{jj}.percent > 0
+                           percent = zeros(1,3);
+                           percent(2:3) = prob.structs{ii}.terms{jj}.percent;
+                       end
+                       % Get horizontal coordinates of targets/constraints
+                       dose = zeros(1,3);
+                       dose(1:2) = prob.structs{ii}.terms{jj}.dose;
+                       plot(dose,percent,':','Color',[0.4,0.4,0.4],...
+                           'LineWidth',2)
+                   end
+                   if jj == 1
+                       dvhHandle = plot(doses,dvhFinal(ii,:),...
+                           'Color',myLines(ii,:),'LineWidth',2);
+                       legendHandles = [legendHandles dvhHandle];
+                   else
+                       plot(doses,dvhFinal(ii,:),'Color',myLines(ii,:),...
+                           'LineWidth',2)
+                   end 
+               end
+            end
+                
+            % Annotations
+            legend(legendHandles,prob.names)
+            xlabel('Dose (Gy)')
+            ylabel('Relative Volume (%)')
+            ax = gca;
+            ax.XLim = [0 doses(end)];
+            ax.YLim = [0 100];
+            box on
+            axis square
+        end
+        
+        function plotBeams(prob)
+            %PLOTBEAMS Plot beamlet intensities.
+            
+            figure()
+            xRemain = prob.x;
+            for ii = 1:prob.nAngles
+                % Get beamlet intensities
+                [idx,nX,nY] = FluenceMapOpt.getBeamCoords(prob.angles(ii));
+                xCurrent = xRemain(1:length(idx));
+                xRemain = xRemain(length(idx)+1:end);
+                beam = zeros(nX,nY);
+                beam(idx) = xCurrent;
+                beam = beam';
+                
+                % Plot beamlet intensities
+                subplot(1,prob.nAngles,ii)
+                imagesc(beam), colormap gray
+                beamAngle = sprintf('%d^\\circ',prob.angles(ii));
+                title(beamAngle,'Interpreter','tex')
+                caxis([0 max(prob.x)])
+                axis square
+            end
+            
+            % Add colorbar
+            pos = get(subplot(1,prob.nAngles,ii),'Position');
+            cb = colorbar;
+            cb.Label.String = 'Beamlet Intensity (MU)';
+            set(subplot(1,prob.nAngles,ii),'Position',pos);
+        end
+        
+        function plotDose(prob)
+            % PLOTDOSE Plot dose with slider for z position.
+            figure()
+            warning('off','MATLAB:contour:ConstantData');
+            hax = axes('Units','pixels');
+            
+            % Plot dose at z = 50
+            z = 50;
+            dose = reshape(prob.D*prob.x,184,184,90);
+            imagesc(dose(:,:,z),'AlphaData',dose(:,:,z)~=0), hold on
+            
+            % Plot body structure outlines
+            for ii = 1:length(prob.mask)
+                contour(prob.mask{ii}(:,:,z),1,'k');
+            end
+            
+            % Annotations
+            title(sprintf('z = %d',z))
+            caxis([min(dose(:)) max(dose(:))]);
+            cb = colorbar;
+            cb.Label.String = 'Dose (Gy)';
+            axis equal
+            axis off
+            hold off
+            
+            % Add slider
+            uicontrol('Style','slider',...
+                'Min',1,'Max',90,'Value',z,...
+                'Position',[200 20 120 20],...
+                'Callback',{@prob.updateZ,hax,dose}); 
+        end
+         
+        function saveResults(prob,fileName)
+            % SAVERESULTS current state and results.
+            results = struct('structs',prob.structs,...
+                'angles',prob.angles,...
+                'lambda',prob.lambda,...
+                'overlap',prob.overlap,...
+                'x0',prob.x0,...
+                'x',prob.x,...
+                'obj',prob.obj,...
+                'wDiff',prob.wDiff,...
+                'nIter',prob.nIter,...
+                'time',prob.time,...
+                'tol',prob.tol,...
+                'maxIter',prob.maxIter);
+            save(fileName,'results');
         end
     end
     
@@ -658,11 +316,9 @@ classdef FluenceMapOpt < handle
             % SETINPUTVARS Set input variables.
             varNames = {'angles','lambda','overlap','tol','maxIter'};
             for ii = 1:length(varNames)
-               if nArgs > ii
-                   if ~isempty(args{ii+1})
-                       prob.(varNames{ii}) = args{ii+1};
-                   end
-               end
+                if nArgs > ii && ~isempty(args{ii+1})
+                    prob.(varNames{ii}) = args{ii+1};
+                end
             end
         end 
         
@@ -763,6 +419,45 @@ classdef FluenceMapOpt < handle
             wProj = FluenceMapOpt.projW(wStep,k);
             wDiff = norm(wProj - wPrev)/step;
             prob.structs{ii}.terms{jj}.w = wProj;
+        end
+        
+        function [doses,dvhInit,dvhFinal] = calcDVH(prob)
+            % CALCDVH Calculate dose-volume histograms.
+            nPoints = 1000;
+            doses = linspace(0,100,nPoints);
+            dvhInit = zeros(prob.nStructs,nPoints);
+            dvhFinal = zeros(prob.nStructs,nPoints);
+            for ii = 1:prob.nStructs
+                doseInit = prob.structs{ii}.A*prob.x0;
+                doseFinal = prob.structs{ii}.A*prob.x;
+                nVoxels = prob.structs{ii}.nVoxels;
+                for jj = 1:nPoints
+                   dvhInit(ii,jj) = 100*sum(doseInit >= doses(jj))/nVoxels;
+                   dvhFinal(ii,jj) = 100*sum(doseFinal >= doses(jj))/nVoxels;
+                end
+            end       
+        end
+        
+        function updateZ(prob,hObj,~,~,dose)
+            % UPDATEZ Callback function for plotDose() slider.
+            
+            % Plot dose at current z value
+            z = round(get(hObj,'Value'));
+            imagesc(dose(:,:,z),'AlphaData',dose(:,:,z)~=0), hold on
+            
+            % Plot body structure outlines
+            for ii = 1:length(prob.mask)
+                contour(prob.mask{ii}(:,:,z),1,'k');
+            end
+            
+            % Annotations
+            title(sprintf('z = %d',z))
+            caxis([min(dose(:)) max(dose(:))]);
+            cb = colorbar;
+            cb.Label.String = 'Dose (Gy)';
+            axis equal
+            axis off
+            hold off
         end
     end
     
@@ -948,6 +643,298 @@ classdef FluenceMapOpt < handle
                 wPos(idxSort(k+1:end)) = 0;
                 w(idxPos) = wPos;
             end
+        end
+        
+        function [idx,nX,nY] = getBeamCoords(angle)
+            % GETBEAMCOORDS Get beamlet coordinates.
+            load(['Gantry' int2str(angle) '_Couch0_BEAMINFO.mat']);
+            xIdx = x - min(x) + 1;
+            yIdx = y - min(y) + 1;
+            nX = max(xIdx);
+            nY = max(yIdx);
+            idx = sub2ind([nX,nY],xIdx,yIdx);
+        end
+        
+        % not implemented...
+        function otherMethods()
+%         % Constraint generation method.
+%         function constGen(f)      
+%             
+%             [A_dvc,d_dvc] = f.calcConstMatBig(f.xInit);
+%             f.x = lsqlin(f.A_unif,f.d_unif,A_dvc,d_dvc,[],[],f.lb,f.ub);
+%         end
+%         
+%         % Calculate stacked constraint matrix for dose-volume constraints.
+%         function [A_dvc,d_dvc] = calcConstMatBig(f,x)
+%            
+%             A_dvc = [];
+%             d_dvc = [];
+%             for i = 1:f.nStructs
+%                 for j = 1:f.structs{i}.nTerms
+%                     if ~strcmp(f.structs{i}.terms{j}.type,'unif')
+%                         [A_temp,d_temp] = calcConstMatSmall(f,x,i,j);
+%                         A_dvc = [A_dvc; A_temp];
+%                         d_dvc = [d_dvc; d_temp];
+%                     end
+%                 end
+%             end
+%         end
+%         
+%         % Calculate constraint matrix for dose-volume constraint.
+%         function [A_dvc,d_dvc] = calcConstMatSmall(f,x,struct,term)
+%             
+%             [~,idx] = sort(f.structs{struct}.A*x);
+%             if strcmp(f.structs{struct}.terms{term}.type,'udvc')
+%                 idx_lower = f.structs{struct}.nVoxels - f.structs{struct}.terms{term}.k;
+%                 A_dvc = f.structs{struct}.A(idx(1:idx_lower),:);
+%                 d_dvc = f.structs{struct}.terms{term}.d(idx(1:idx_lower));
+%             elseif strcmp(f.structs{struct}.terms{term}.type,'ldvc')
+%                 idx_upper = f.structs{struct}.terms{term}.k + 1;
+%                 A_dvc = -f.structs{struct}.A(idx(idx_upper:end),:);
+%                 d_dvc = -f.structs{struct}.terms{term}.d(idx(idx_upper:end));
+%             else
+%                 A_dvc = NaN;
+%                 d_dvc = NaN;
+%             end 
+%         end
+%         
+%         % conrad method.
+%         function conrad(f,slope)
+%             
+%             if ~exist('slope','var')
+%                 slope = 1;
+%             end
+% 
+%             % Non-negative least-squares with relaxed OAR constraint
+%             cvx_begin quiet
+%                 variable x1(f.nBeamlts)
+%                 minimize( sum_square(f.A_unif*x1 - f.d_unif) )
+%                 subject to
+%                     f.lb <= x1;
+%                     for i = 1:f.nStructs
+%                         for j = 1:f.structs{i}.nTerms
+%                             if ~strcmp(f.structs{i}.terms{j}.type,'unif')
+%                                 A = f.structs{i}.A;
+%                                 d = f.structs{i}.terms{j}.d;
+%                                 if strcmp(f.structs{i}.terms{j}.type,'udvc')
+%                                     k = f.structs{i}.nVoxels - f.structs{i}.terms{j}.k;
+%                                 else
+%                                     k = f.structs{i}.terms{j}.k;
+%                                 end
+%                                 sum(pos(1 + slope*(A*x1 - d))) <= k;
+%                             end
+%                         end
+%                     end
+%             cvx_end
+% 
+%             % Non-negative least-squares with hard OAR constraint
+%             cvx_begin quiet
+%                 variable x2(f.nBeamlts)
+%                 minimize( sum_square(f.A_unif*x2 - f.d_unif) )
+%                 subject to
+%                     f.lb <= x2;
+%                     for i = 1:f.nStructs
+%                         for j = 1:f.structs{i}.nTerms
+%                             if ~strcmp(f.structs{i}.terms{j}.type,'unif')
+%                                 [A,d] = calcConstMatSmall(f,x1,i,j);
+%                                 A*x2 <= d;
+%                             end
+%                         end
+%                     end
+%             cvx_end
+%             
+%             f.x = x2;
+%         end
+        end
+        
+        % not implemented...
+        function paperPlots()
+%         % Plot objective function values (fig 8).
+%         function plotObjPaper(f)
+%             
+%             myLines = lines;
+%            
+%             % Objective function
+%             figure(1)
+%             subplot(3,1,1)
+%             plot(0:f.nIter,f.obj(1:f.nIter+1),'Color',[0.5,0.5,0.5],'LineWidth',3)
+%             f.adjustAxis(gca)
+%             
+%             % Objective terms
+%             for i = 1:f.nStructs
+%                 for j = 1:length(f.structs{i}.terms)
+%                     figure(1)
+%                     subplot(3,1,i+1)
+%                     plot(0:f.nIter,f.structs{i}.terms{j}.obj(1:f.nIter+1),'Color',myLines(i,:),'LineWidth',3);
+%                     f.adjustAxis(gca)
+%             
+%                     % Voxels under or over dose constraints
+%                     if ~strcmp(f.structs{i}.terms{j}.type,'unif')
+%                         figure(2), hold on
+%                         subplot(2,1,2)
+%                         plot(0:f.nIter,f.structs{i}.terms{j}.vdiff(1:f.nIter+1),'Color',myLines(i,:),'LineWidth',3);
+%                         f.adjustAxis(gca)
+%                         set(gca,'YTick',52:2:56);
+%                     end
+%                 end
+%             end
+%             
+%             figure(2)
+%             subplot(2,1,1)
+%             plot(1:f.nIter,f.err(1:f.nIter),'Color',[0.5,0.5,0.5],'LineWidth',3)
+%             f.adjustAxis(gca);
+%         end   
+%         
+%         % Readjust axes limits.
+%         function adjustAxis(~,g)
+%             
+%             axis tight
+%             yVals = g.YLim;
+%             yPad = 0.1*(yVals(2) - yVals(1));
+%             g.YLim = [yVals(1)-yPad yVals(2)+yPad];
+%             g.XTick = 0:50:200;
+%             g.XTickLabels = {};
+%             g.YTickLabels = {};
+%             g.LineWidth = 2;      
+%         end
+%         
+%         % Calculate and plot dose-volume histogram of solution (fig 9,11,12,13).
+%         function plotDVHPaper(f)
+%             
+%             myLines = lines;
+%             
+%             % Calculate dose-volume histograms
+%             doses = linspace(0,100,1000);
+%             dvhInit = zeros(f.nStructs,length(doses));
+%             dvhFinal = zeros(f.nStructs,length(doses));
+%             for i = 1:f.nStructs
+%                 doseInit = f.structs{i}.A*f.xInit;
+%                 doseFinal = f.structs{i}.A*f.x;
+%                 for j = 1:length(doses)
+%                     dvhInit(i,j) = 100*sum(doseInit > doses(j))/f.structs{i}.nVoxels;
+%                     dvhFinal(i,j) = 100*sum(doseFinal > doses(j))/f.structs{i}.nVoxels;
+%                 end
+%             end
+%             
+%             % Plot dose-volume histograms
+%             for i = 1:f.nStructs
+%                 figure(), hold on
+%                 for j = 1:length(f.structs{i}.terms)
+%                     if ~strcmp(f.structs{i}.terms{j}.type,'unif') && f.structs{i}.terms{j}.percent == 0
+%                         plot(f.structs{i}.terms{j}.dose,0,'p','MarkerFaceColor',[0.9290 0.6940 0.1250],...
+%                             'MarkerEdgeColor',[0.9290 0.6940 0.1250],'MarkerSize',10);
+%                     else
+%                         if strcmp(f.structs{i}.terms{j}.type,'unif')
+%                             percent = [0 100 100];
+%                         elseif f.structs{i}.terms{j}.percent > 0
+%                             percent = zeros(1,3);
+%                             percent(2:3) = f.structs{i}.terms{j}.percent;
+%                         end
+%                         dose = zeros(1,3);
+%                         dose(1:2) = f.structs{i}.terms{j}.dose;
+%                         plot(dose,percent,':','Color',[0.4 0.4 0.4],'LineWidth',3)
+%                         plot(doses,dvhInit(i,:),'--','LineWidth',3,'Color',myLines(i,:))
+%                         plot(doses,dvhFinal(i,:),'LineWidth',3,'Color',myLines(i,:))
+%                     end
+%                 end
+%                 
+%                 % Annotations
+%                 ax = gca;
+%                 ax.XLim = [0 doses(end)];
+%                 ax.YLim = [0 100];
+%                 ax.XTick = 0:20:100;
+%                 ax.YTick = 0:20:100;
+%                 ax.XTickLabel = {};
+%                 ax.YTickLabel = {};
+%                 ax.LineWidth = 2;
+%                 box on
+%                 axis square
+%             end
+%         end
+%               
+%         % Plot beamlet intensities (fig 10,14).
+%         function plotBeamletsPaper(f)
+%             
+%             figure()
+%             x = f.x;
+%             
+%             for i = 1:4
+%                 % Get x and y positions
+%                 [linIdx,nx,ny] = f.getBeamlets(f.angles(i));
+%                 
+%                 % Get beamlet intensities
+%                 xTemp = x(1:length(linIdx));
+%                 x = x(length(linIdx)+1:end);
+%                 B = zeros(nx,ny);
+%                 B(linIdx) = xTemp;
+%                 B = B';
+%                 
+%                 % Plot beamlet intensities
+%                 subplot(2,2,i)
+%                 imagesc(B), colormap gray
+%                 set(gca,'YDir','normal','XTick',[],'YTick',[])
+%                 caxis([0 max(f.x)])
+%                 axis square
+%             end
+%             
+%             % Positioning
+%             h = gcf;
+%             pos = h.Position;
+%             h.Position = [pos(1) pos(2) pos(3) pos(3)];
+%             a = subplot(2,2,1);
+%             a.Position = [0.1 0.5 0.3 0.3];
+%             b = subplot(2,2,2);
+%             b.Position = [0.45 0.5 0.3 0.3];
+%             c = subplot(2,2,3);
+%             c.Position = [0.1 0.15 0.3 0.3];
+%             d = subplot(2,2,4);
+%             d.Position = [0.45 0.15 0.3 0.3];
+%             
+%             % Colorbar
+%             e = colorbar('southoutside','Ticks',0:1000:3000,'TickLabels',{},'LineWidth',2);
+%             e.Position = [0.1    0.077    0.65    0.02700];
+%         end
+%         
+%         % Plot dose at slice 50 (fig 1,5,10,14).
+%         function plotDosePaper(f)
+%             
+%             figure()
+%             idx1 = 40:126;
+%             idx2 = 23:152;
+%             
+%             % Get CT slice
+%             ct = dicomread('CT.2.16.840.1.113662.2.12.0.3173.1271873797.276');
+%             ct = double(imresize(ct,[184,184]));
+%             ct50 = ct(idx1,idx2);
+%             ctShift = ct50 - min(ct50(:));
+%             ctShiftScale = ctShift/max(ctShift(:));
+%             CT50 = repmat(ctShiftScale,[1 1 3]);
+%             
+%             % Get Dose
+%             Dose = reshape(f.D*f.x,184,184,90);
+%             Dose50 = Dose(idx1,idx2,50);
+%             
+%             % Plot CT
+%             body50 = f.mask{end}(idx1,idx2,50);
+%             imagesc(CT50), hold on
+%             
+%             % Plot dose
+%             imagesc(Dose50,'AlphaData',0.3*(body50~=0))
+%             contour(Dose50,0:10:100,'LineWidth',2);
+%             
+%             % Plot organ contours
+%             for i = 1:length(f.mask)-1
+%                contour(f.mask{i}(idx1,idx2,50),1,'k','LineWidth',2); 
+%             end
+%             
+%             % Annotations
+%             caxis([min(Dose50(:)) max(Dose50(:))]);
+%             axis equal
+%             axis off
+%             
+%             % Colorbar
+%             colorbar('southoutside','Ticks',0:20:100,'TickLabels',{},'LineWidth',2)
+%         end
         end
     end
 end
