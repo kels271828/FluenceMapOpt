@@ -110,6 +110,7 @@ classdef FluenceMapOpt < handle
             if isempty(prob.x0)
                 prob.x0 = prob.projX('unif');
             end
+            prob.x = prob.x0;
         end
         
         function calcBeamlets(prob,print)
@@ -150,6 +151,44 @@ classdef FluenceMapOpt < handle
                     break
                 end
             end
+        end
+        
+        % need to test...
+        function constGen(prob,x)
+            % CONSTGEN Constraint generation method.
+            if nargin == 1
+                x = prob.x0;
+            end
+            f = -prob.Au'*prob.du;
+            [Ac,dc] = prob.getConstraints(x);
+            options = optimoptions(@quadprog,'Display','final');
+            prob.x = quadprog(prob.Hu,f,Ac,dc,[],[],prob.lb,prob.ub,[],options);
+        end
+        
+        % need to test...
+        function convRelax(prob,slope)
+            % CONVRELAX Approach inspired by conrad paper.
+            if nargin == 1
+                slope = 1;
+            end
+            cvx_begin quiet
+                variable xRelax(prob.nBeamlts)
+                minimize(sum_square(prob.Au*xRelax - prob.du))
+                subject to
+                    prob.lb <= xRelax;
+                    for ii = 1:prob.nStructs
+                        At = prob.structs{ii}.A;
+                        for jj = 1:prob.structs{ii}.nTerms
+                            if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                                d = prob.structs{ii}.terms{jj}.d;
+                                k = prob.structs{ii}.terms{jj}.k;
+                                s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
+                                sum(pos(1 + (-1)^s*slope*(At*xRelax - d))) <= k;
+                            end
+                        end
+                    end
+            cvx_end
+            prob.constGen(xRelax);    
         end
         
         function plotObj(prob)
@@ -196,7 +235,11 @@ classdef FluenceMapOpt < handle
                            percent = [0 100 100];
                        elseif prob.structs{ii}.terms{jj}.percent > 0
                            percent = zeros(1,3);
-                           percent(2:3) = prob.structs{ii}.terms{jj}.percent;
+                           constraint = prob.structs{ii}.terms{jj}.percent;
+                           if strcmp(prob.structs{ii}.terms{jj}.type,'ldvc')
+                               constraint = 100 - constraint;
+                           end
+                           percent(2:3) = constraint;
                        end
                        % Get horizontal coordinates of targets/constraints
                        dose = zeros(1,3);
@@ -472,6 +515,7 @@ classdef FluenceMapOpt < handle
             end 
         end
         
+        % need to test...
         function wDiff = updateW(prob,ii,jj)
             % UPDATEW Update proxy variable.
             
@@ -491,6 +535,33 @@ classdef FluenceMapOpt < handle
             wProj = FluenceMapOpt.projW(wStep,k);
             wDiff = norm(wProj - wPrev)/step;
             prob.structs{ii}.terms{jj}.w = wProj;
+        end
+        
+        % need to test...
+        function [Ac,dc] = getConstraints(prob,x)
+            % GETCONSTRAINTS Get stacked dose-volume constraints.
+            Ac = [];
+            dc = [];
+            for ii = 1:prob.nStructs
+                for jj = 1:prob.structs{ii}.nTerms
+                    if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                        [At,dt] = prob.getTermConstraint(x,ii,jj);
+                        Ac = [Ac; At];
+                        dc = [dc; dt];
+                    end
+                end
+            end 
+        end
+        
+        % need to test...
+        function [At,dt] = getTermConstraint(prob,x,ii,jj)
+            % GETTERMCONSTRAINTS Get term dose-volume constraint.
+            nVoxels = prob.structs{ii}.nVoxels;
+            k = prob.structs{ii}.terms{jj}.k;
+            s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
+            [~,idxSort] = sort((-1)^2*prob.structs{ii}.A*x);
+            At = (-1)^s*prob.structs{ii}.A(idxSort(1:nVoxels-k),:);
+            dt = (-1)^s*prob.structs{ii}.terms{jj}.d(idxSort(1:nVoxels-k));
         end
         
         function [doses,dvhInit,dvhFinal] = calcDVH(prob)
@@ -641,98 +712,6 @@ classdef FluenceMapOpt < handle
             nX = max(xIdx);
             nY = max(yIdx);
             idx = sub2ind([nX,nY],xIdx,yIdx);
-        end
-        
-        % not implemented...
-        function otherMethods()
-%         % Constraint generation method.
-%         function constGen(f)      
-%             
-%             [A_dvc,d_dvc] = f.calcConstMatBig(f.xInit);
-%             f.x = lsqlin(f.A_unif,f.d_unif,A_dvc,d_dvc,[],[],f.lb,f.ub);
-%         end
-%         
-%         % Calculate stacked constraint matrix for dose-volume constraints.
-%         function [A_dvc,d_dvc] = calcConstMatBig(f,x)
-%            
-%             A_dvc = [];
-%             d_dvc = [];
-%             for i = 1:f.nStructs
-%                 for j = 1:f.structs{i}.nTerms
-%                     if ~strcmp(f.structs{i}.terms{j}.type,'unif')
-%                         [A_temp,d_temp] = calcConstMatSmall(f,x,i,j);
-%                         A_dvc = [A_dvc; A_temp];
-%                         d_dvc = [d_dvc; d_temp];
-%                     end
-%                 end
-%             end
-%         end
-%         
-%         % Calculate constraint matrix for dose-volume constraint.
-%         function [A_dvc,d_dvc] = calcConstMatSmall(f,x,struct,term)
-%             
-%             [~,idx] = sort(f.structs{struct}.A*x);
-%             if strcmp(f.structs{struct}.terms{term}.type,'udvc')
-%                 idx_lower = f.structs{struct}.nVoxels - f.structs{struct}.terms{term}.k;
-%                 A_dvc = f.structs{struct}.A(idx(1:idx_lower),:);
-%                 d_dvc = f.structs{struct}.terms{term}.d(idx(1:idx_lower));
-%             elseif strcmp(f.structs{struct}.terms{term}.type,'ldvc')
-%                 idx_upper = f.structs{struct}.terms{term}.k + 1;
-%                 A_dvc = -f.structs{struct}.A(idx(idx_upper:end),:);
-%                 d_dvc = -f.structs{struct}.terms{term}.d(idx(idx_upper:end));
-%             else
-%                 A_dvc = NaN;
-%                 d_dvc = NaN;
-%             end 
-%         end
-%         
-%         % conrad method.
-%         function conrad(f,slope)
-%             
-%             if ~exist('slope','var')
-%                 slope = 1;
-%             end
-% 
-%             % Non-negative least-squares with relaxed OAR constraint
-%             cvx_begin quiet
-%                 variable x1(f.nBeamlts)
-%                 minimize( sum_square(f.A_unif*x1 - f.d_unif) )
-%                 subject to
-%                     f.lb <= x1;
-%                     for i = 1:f.nStructs
-%                         for j = 1:f.structs{i}.nTerms
-%                             if ~strcmp(f.structs{i}.terms{j}.type,'unif')
-%                                 A = f.structs{i}.A;
-%                                 d = f.structs{i}.terms{j}.d;
-%                                 if strcmp(f.structs{i}.terms{j}.type,'udvc')
-%                                     k = f.structs{i}.nVoxels - f.structs{i}.terms{j}.k;
-%                                 else
-%                                     k = f.structs{i}.terms{j}.k;
-%                                 end
-%                                 sum(pos(1 + slope*(A*x1 - d))) <= k;
-%                             end
-%                         end
-%                     end
-%             cvx_end
-% 
-%             % Non-negative least-squares with hard OAR constraint
-%             cvx_begin quiet
-%                 variable x2(f.nBeamlts)
-%                 minimize( sum_square(f.A_unif*x2 - f.d_unif) )
-%                 subject to
-%                     f.lb <= x2;
-%                     for i = 1:f.nStructs
-%                         for j = 1:f.structs{i}.nTerms
-%                             if ~strcmp(f.structs{i}.terms{j}.type,'unif')
-%                                 [A,d] = calcConstMatSmall(f,x1,i,j);
-%                                 A*x2 <= d;
-%                             end
-%                         end
-%                     end
-%             cvx_end
-%             
-%             f.x = x2;
-%         end
         end
         
         % not implemented...

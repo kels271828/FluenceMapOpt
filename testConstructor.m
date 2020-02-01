@@ -93,7 +93,7 @@ function testGetD(testCase)
     assert(length(d) == 7756,'Incorrect length')
 end
 
-function testInitX(testCase)
+function testX0(testCase)
     prob = testCase.TestData.prob;
     x0 = prob.projX('unif');
     percentUnder = sum(prob.structs{2}.A*x0 < 60)/prob.structs{2}.nVoxels;
