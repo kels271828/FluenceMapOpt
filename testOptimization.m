@@ -50,7 +50,3 @@ function testUpdateX(testCase)
     percentOver = sum(prob.structs{3}.A*x > 30)/prob.structs{3}.nVoxels;
     assert(abs(percentOver - 0.4303) < 1e-4,'Incorrect initialization')
 end
-
-% Test updateW
-% Test calcBeamlets (change tol, maybe 3e-1?)
-% Check steps, etc.

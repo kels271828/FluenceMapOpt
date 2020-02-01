@@ -30,9 +30,7 @@ classdef FluenceMapOpt < handle
     %           * 'udvc': No more than p% receives more than d Gy
     %
     %   Written to work with the CORT prostate tumor dataset, but could be
-    %   modified to work with other datasets.r
-    
-    % Path names?
+    %   modified to work with other datasets.
     
     properties (SetAccess = private)
         structs            % Body structures
@@ -114,10 +112,8 @@ classdef FluenceMapOpt < handle
             end
         end
         
-        % need to test...
         function calcBeamlets(prob,print)
-            % CALCBEAMLETS Calculate beamlet intensities with or without
-            %   iteration output..
+            % CALCBEAMLETS Calculate beamlet intensities.
             if nargin == 1
                 print = true;
             end
@@ -476,7 +472,6 @@ classdef FluenceMapOpt < handle
             end 
         end
         
-        % need to test...
         function wDiff = updateW(prob,ii,jj)
             % UPDATEW Update proxy variable.
             

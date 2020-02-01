@@ -10,7 +10,7 @@ function plotDVHcompare(f,xa,xb)
     dvhFinal_a = zeros(f.nStructs,length(doses));
     dvhFinal_b = zeros(f.nStructs,length(doses));
     for i = 1:f.nStructs
-        doseInit = f.structs{i}.A*f.xInit;
+        doseInit = f.structs{i}.A*f.x0; % change back to xInit?
         doseFinal_a = f.structs{i}.A*xa;
         doseFinal_b = f.structs{i}.A*xb;
         for j = 1:length(doses)
