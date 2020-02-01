@@ -326,11 +326,11 @@ classdef FluenceMapOpt < handle
             % Add terms
             A = [];
             for ii = 1:prob.nStructs
+                nVoxels = prob.structs{ii}.nVoxels;
                 for jj = 1:prob.structs{ii}.nTerms
                     termUnif = strcmp(prob.structs{ii}.terms{jj}.type,'unif');
                     if matFull || (matUnif && termUnif)
                         weight = prob.structs{ii}.terms{jj}.weight;
-                        nVoxels = prob.structs{ii}.nVoxels;
                         temp = sqrt(weight/nVoxels)*prob.structs{ii}.A;
                         A = [A; temp];
                     end
@@ -479,7 +479,7 @@ classdef FluenceMapOpt < handle
             s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
             k = prob.structs{ii}.terms{jj}.k;
             step = prob.structs{ii}.terms{jj}.step;
-            coeff = step/prob.structs{ii}.nVoxels;
+            coeff = step*prob.structs{ii}.terms{jj}.weight/prob.structs{ii}.nVoxels;
             
             % Calculate gradient step
             dose = prob.structs{ii}.A*prob.x;
