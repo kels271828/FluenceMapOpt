@@ -1,6 +1,5 @@
 function tests = testConstructor
     addpath(genpath('PROSTATE'));
-    addpath(genpath('Prostate_Dicom'));
     addpath(genpath('minConf'));
     tests = functiontests(localfunctions);
 end
@@ -32,12 +31,14 @@ end
 
 function testVararginParameters(testCase)
     structs = testCase.TestData.structs;
-    prob = FluenceMapOpt(structs,[],0,1,2,3,4);
-    assert(prob.angles == 0,'Incorrect angles')
-    assert(prob.lambda == 1,'Incorrect lambda')
-    assert(prob.overlap == 2,'Incorrect overlap')
-    assert(prob.tol == 3,'Incorrect tol')
-    assert(prob.maxIter == 4,'Incorrect maxIter')
+    prob = FluenceMapOpt(structs,'maxIter',0,'tol',1,'x0',2,'lambda',3,...
+        'overlap',4,'angles',6);
+    assert(prob.angles == 6,'Incorrect angles')
+    assert(prob.overlap == 4,'Incorrect overlap')
+    assert(prob.lambda == 3,'Incorrect lambda')
+    assert(prob.x0 == 2,'Incorrect x0')
+    assert(prob.tol == 1,'Incorrect tol')
+    assert(prob.maxIter == 0,'Incorrect maxIter')
 end
 
 function testSizeD(testCase)
@@ -78,36 +79,25 @@ end
 
 function testSizeA(testCase)
     prob = testCase.TestData.prob;
-    [A,~,~] = FluenceMapOpt.getA(prob.structs,prob.lambda,prob.nStructs,...
-        prob.nBeamlts);
+    [A,~,~,~] = prob.getA('full');
     assert(size(A,1) == 17882,'Incorrect rows')
     assert(size(A,2) == prob.nBeamlts,'Incorrect columns')
-    [A,~,~] = FluenceMapOpt.getA(prob.structs,prob.lambda,prob.nStructs,...
-        prob.nBeamlts,'full');
-    assert(size(A,1) == 17882,'Incorrect rows')
-    assert(size(A,2) == prob.nBeamlts,'Incorrect columns')
-    [A,~,~] = FluenceMapOpt.getA(prob.structs,prob.lambda,prob.nStructs,...
-        prob.nBeamlts,'unif');
+    [A,~,~,~] = prob.getA('unif');
     assert(size(A,1) == 7756,'Incorrect rows')
     assert(size(A,2) == prob.nBeamlts,'Incorrect columns')
 end
 
 function testGetD(testCase)
     prob = testCase.TestData.prob;
-    d = FluenceMapOpt.getd(prob.structs,prob.lambda,prob.nStructs,...
-        prob.nBeamlts,'unif');
+    d = prob.getd('unif');
     assert(length(d) == 7756,'Incorrect length')
 end
 
 function testInitX(testCase)
     prob = testCase.TestData.prob;
-    [A,lb,ub] = FluenceMapOpt.getA(prob.structs,prob.lambda,prob.nStructs,...
-        prob.nBeamlts,'unif');
-    d = FluenceMapOpt.getd(prob.structs,prob.lambda,prob.nStructs,...
-        prob.nBeamlts,'unif');
-    x0 = FluenceMapOpt.projX(A,d,lb,ub);
+    x0 = prob.projX('unif');
     percentUnder = sum(prob.structs{2}.A*x0 < 60)/prob.structs{2}.nVoxels;
-    assert(abs(percentUnder - 0.8690) < 1e-4,'Incorrect initialization')
+    assert(abs(percentUnder - 0.8782) < 1e-4,'Incorrect initialization')
     percentOver = sum(prob.structs{3}.A*x0 > 30)/prob.structs{3}.nVoxels;
-    assert(abs(percentOver - 0.6579) < 1e-4,'Incorrect initialization')
+    assert(abs(percentOver - 0.6427) < 1e-4,'Incorrect initialization')
 end

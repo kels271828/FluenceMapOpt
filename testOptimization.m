@@ -1,6 +1,5 @@
 function tests = testOptimization
     addpath(genpath('PROSTATE'));
-    addpath(genpath('Prostate_Dicom'));
     addpath(genpath('minConf'));
     tests = functiontests(localfunctions);
 end
@@ -39,20 +38,19 @@ end
 function testInitObj(testCase)
     prob = testCase.TestData.prob;
     prob.initProb(false);
-    assert(abs(prob.obj(1) - 1.6367e+03) < 1e0,'Wrong objective value')
+    assert(abs(prob.obj(1) - 2.2271e+03) < 1e0,'Wrong objective value')
 end
 
 function testUpdateX(testCase)
     prob = testCase.TestData.prob;
     prob.initProb(false);
-    prob.updateX();
-    x = prob.x;
+    x = prob.projX('full');
     percentUnder = sum(prob.structs{2}.A*x < 60)/prob.structs{2}.nVoxels;
-    assert(abs(percentUnder - 0.4713) < 1e-4,'Incorrect initialization')
+    assert(abs(percentUnder - 0.4828) < 1e-4,'Incorrect initialization')
     percentOver = sum(prob.structs{3}.A*x > 30)/prob.structs{3}.nVoxels;
-    assert(abs(percentOver - 0.4200) < 1e-4,'Incorrect initialization')
+    assert(abs(percentOver - 0.4303) < 1e-4,'Incorrect initialization')
 end
 
 % Test updateW
 % Test calcBeamlets (change tol, maybe 3e-1?)
-% Check steps, etc., compare to paper problems (different solver)
+% Check steps, etc.

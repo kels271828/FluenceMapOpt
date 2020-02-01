@@ -32,11 +32,13 @@ classdef FluenceMapOpt < handle
     %   Written to work with the CORT prostate tumor dataset, but could be
     %   modified to work with other datasets.r
     
+    % Path names?
+    
     properties (SetAccess = private)
         structs            % Body structures
         angles = 0:52:358; % Gantry angles
-        lambda = 1e-8;     % L2 regularization coefficient
         overlap = false;   % Allow overlaps in structures
+        lambda = 1e-8;     % L2 regularization coefficient
         nStructs           % Number of body structures
         nAngles            % Number of angles
         nBeamlts           % Number of beamlets
@@ -45,7 +47,9 @@ classdef FluenceMapOpt < handle
     properties (Access = private)
         D     % Full beamlet-to-voxel matrix
         A     % Stacked beamlet-to-voxel matrix
+        H     % Stacked beamlet-to-voxel Hessian
         Au    % Stacked beamlet-to-voxel matrix for uniform target terms
+        Hu    % Stacked beamlet to voxel Hessian for uniform target terms
         du    % Stacked dose vector for uniform target terms
         lb    % Lower bound for beamlets
         ub    % Upper bound for beamlets
@@ -71,8 +75,17 @@ classdef FluenceMapOpt < handle
             %   prob = FluenceMapOpt(structs)
             %       Initialize problem with default parameters.
             %
-            %   prob = FluenceMapOpt(structs,xInit,angles,lambda,overlap,tol,maxIter)
+            %   prob = FluenceMapOpt(structs,ProbSpec)
             %       Initialize problem with optional arguments.
+            %
+            %   Example:
+            %       prob = FluenceMapOpt(structs,...
+            %           'angles',0:52:358,...
+            %           'overlap',false,...
+            %           'lambda',1e-8,...
+            %           'x0',zeros(986,1),...
+            %           'tol',1e-3,...
+            %           'maxIter',500);
         
             % Set input variables
             if nargin == 0
@@ -81,7 +94,7 @@ classdef FluenceMapOpt < handle
             if ~iscell(structs)
                 error('Invalid input for `structs`.')
             end
-            prob.setInputVars(varargin,nargin-1);
+            prob.setInputVars(varargin);
             prob.nStructs = length(structs);
             prob.nAngles = length(prob.angles);
             
@@ -91,34 +104,21 @@ classdef FluenceMapOpt < handle
                 prob.nStructs,prob.overlap,prob.D);
             prob.names = FluenceMapOpt.getNames(prob.structs,prob.nStructs);
             prob.mask = FluenceMapOpt.getMaskStruct(prob.names,prob.overlap);
-            [prob.A,prob.lb,prob.ub] = FluenceMapOpt.getA(prob.structs,...
-                prob.lambda,prob.nStructs,prob.nBeamlts);
-            [prob.Au,~,~] = FluenceMapOpt.getA(prob.structs,prob.lambda,...
-                prob.nStructs,prob.nBeamlts,'unif');
-            prob.du = FluenceMapOpt.getd(prob.structs,prob.lambda,...
-                prob.nStructs,prob.nBeamlts,'unif');
+            [prob.A,prob.H,prob.lb,prob.ub] = prob.getA('full');
+            [prob.Au,prob.Hu,~,~] = prob.getA('unif');
+            prob.du = prob.getd('unif');
             
             % Compute initial beamlets
-            if nargin > 1 && ~isempty(varargin{1})
-                disp('here')
-                prob.x0 = varargin{1};
-            else
-                prob.x0 = FluenceMapOpt.projX(prob.Au,prob.du,prob.lb,prob.ub);
+            if isempty(prob.x0)
+                prob.x0 = prob.projX('unif');
             end
         end
         
         % need to test...
-        function calcBeamlets(prob,varargin)
-            % CALCBEAMLETS Calculate beamlet intensities.
-            %
-            %   calcBeamlets()
-            %       Calculate beamlets and print iteration output.
-            %
-            %   calcBeamlets(print)
-            %       Calculate beamlets with or without iteration output.
-            if nargin > 1
-                print = varargin{1};
-            else
+        function calcBeamlets(prob,print)
+            % CALCBEAMLETS Calculate beamlet intensities with or without
+            %   iteration output..
+            if nargin == 1
                 print = true;
             end
             
@@ -128,7 +128,7 @@ classdef FluenceMapOpt < handle
             for kk = 1:prob.maxIter
                 
                 % Update x and w vectors
-                prob.updateX();
+                prob.x = prob.projX('full');
                 wDiffSum = 0;
                 for ii = 1:prob.nStructs
                     for jj = 1:prob.structs{ii}.nTerms
@@ -159,9 +159,8 @@ classdef FluenceMapOpt < handle
         function plotObj(prob)
             % PLOTOBJ Plot objective function values.
             
-            figure()
-            
             % Objective function
+            figure()
             subplot(1,2,1)
             plot(0:prob.nIter,prob.obj,'LineWidth',2)
             xlabel('Iteration (k)')
@@ -233,7 +232,6 @@ classdef FluenceMapOpt < handle
         
         function plotBeams(prob)
             %PLOTBEAMS Plot beamlet intensities.
-            
             figure()
             xRemain = prob.x;
             for ii = 1:prob.nAngles
@@ -312,15 +310,101 @@ classdef FluenceMapOpt < handle
     end
     
     methods (Hidden)
-        function setInputVars(prob,args,nArgs)
+        function setInputVars(prob,args)
             % SETINPUTVARS Set input variables.
-            varNames = {'angles','lambda','overlap','tol','maxIter'};
-            for ii = 1:length(varNames)
-                if nArgs > ii && ~isempty(args{ii+1})
-                    prob.(varNames{ii}) = args{ii+1};
-                end
+            for ii = 1:length(args)/2
+                prob.(args{2*ii-1}) = args{2*ii};
             end
         end 
+        
+        function [A,H,lb,ub] = getA(prob,type)
+            % GETA Get stacked beamlet-to-voxel matrix, Hessian, and 
+            %   beamlet lower and upper bounds.
+            %
+            %   Get output for structures and terms specified by type:
+            %       * 'full': All structures and terms
+            %       * 'unif': Structures and terms with uniform targets
+            matFull = strcmp(type,'full');
+            matUnif = strcmp(type,'unif');
+
+            % Add terms
+            A = [];
+            for ii = 1:prob.nStructs
+                for jj = 1:prob.structs{ii}.nTerms
+                    termUnif = strcmp(prob.structs{ii}.terms{jj}.type,'unif');
+                    if matFull || (matUnif && termUnif)
+                        weight = prob.structs{ii}.terms{jj}.weight;
+                        nVoxels = prob.structs{ii}.nVoxels;
+                        temp = sqrt(weight/nVoxels)*prob.structs{ii}.A;
+                        A = [A; temp];
+                    end
+                end
+            end
+
+            % Add regularization
+            if prob.lambda > 0
+                A = [A; sqrt(prob.lambda)*eye(prob.nBeamlts)];
+            end
+
+            % Create Hessian and beamlet bounds
+            H = A'*A;
+            lb = zeros(prob.nBeamlts,1);
+            ub = inf(prob.nBeamlts,1);
+        end
+        
+        function d = getd(prob,type)
+            % GETD Get stacked dose vector.
+            %
+            %   Get output for structurs and terms specified by type:
+            %       * 'full':  All structures and terms
+            %       * 'unif': Structures and terms with uniform targets
+            vecFull = strcmp(type,'full');
+            vecUnif = strcmp(type,'unif');
+
+            % Add terms
+            d = [];
+            for ii = 1:prob.nStructs
+                nVoxels = prob.structs{ii}.nVoxels;
+                for jj = 1:prob.structs{ii}.nTerms
+                    termUnif = strcmp(prob.structs{ii}.terms{jj}.type,'unif');
+                    if vecFull || (vecUnif && termUnif)
+                        weight = prob.structs{ii}.terms{jj}.weight;
+                        termD = prob.structs{ii}.terms{jj}.d;
+                        temp = sqrt(weight/nVoxels)*termD;
+                        if ~termUnif
+                            w = prob.structs{ii}.terms{jj}.w;
+                            temp = temp + sqrt(weight/nVoxels)*w;
+                        end
+                        d = [d; temp];
+                    end
+                end
+            end
+
+            % Add regularization
+            if prob.lambda > 0
+                d = [d; zeros(prob.nBeamlts,1)];
+            end
+        end
+        
+        function x = projX(prob,type)
+            % PROJX Solve non-negative least-squares problem for beamlets.
+            if strcmp(type,'unif')
+                A = prob.Au;
+                H = prob.Hu;
+                d = prob.du;
+                x0 = zeros(prob.nBeamlts,1);
+            else
+                A = prob.A;
+                H = prob.H;
+                d = prob.getd('full');
+                x0 = prob.x;
+            end
+            f = -A'*d;
+            func = @(x)FluenceMapOpt.quadObj(x,H,f);
+            options.verbose = 0;
+            options.method = 'newton';
+            x = minConf_TMP(func,x0,prob.lb,prob.ub,options);
+        end
         
         function initProb(prob,print)
             % INITPROB Initialize x, w, and objective values.
@@ -348,15 +432,15 @@ classdef FluenceMapOpt < handle
         
         function initObj(prob)
             % INITOBJ Initialize objective function values
-            myZeros = zeros(1,prob.maxIter+1);
-            prob.obj = myZeros;
-            prob.wDiff = myZeros(1:end-1);
+            zeroVec = zeros(1,prob.maxIter+1);
+            prob.obj = zeroVec;
+            prob.wDiff = zeroVec(1:end-1);
             for ii = 1:prob.nStructs
                 for jj = prob.structs{ii}.nTerms
-                    prob.structs{ii}.terms{jj}.obj = myZeros;
+                    prob.structs{ii}.terms{jj}.obj = zeroVec;
                     if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-                        prob.structs{ii}.terms{jj}.resPos = myZeros;
-                        prob.structs{ii}.terms{jj}.wPos = myZeros;
+                        prob.structs{ii}.terms{jj}.resPos = zeroVec;
+                        prob.structs{ii}.terms{jj}.wPos = zeroVec;
                     end
                 end
             end
@@ -390,13 +474,6 @@ classdef FluenceMapOpt < handle
                     fprintf('\n');
                 end
             end 
-        end
-        
-        function updateX(prob)
-            % UPDATEX Update beamlet intensities.
-            d = FluenceMapOpt.getd(prob.structs,prob.lambda,...
-                prob.nStructs,prob.nBeamlts);
-            prob.x = FluenceMapOpt.projX(prob.A,d,prob.lb,prob.ub);
         end
         
         % need to test...
@@ -541,97 +618,13 @@ classdef FluenceMapOpt < handle
             mask(v) = 1;
             mask = reshape(mask,184,184,90);
         end
-
-        function [A,lb,ub] = getA(structs,lambda,nStructs,nBeamlts,varargin)
-            % GETA Get stacked beamlet-to-voxel matrix and beamlet bounds.
-            %
-            %   [A,H,lb,ub] = getA(structs,lambda,nStructs,nBeamlts)
-            %       Get output for all structures and terms.
-            %
-            %   [A,H,lb,ub] = getA(structs,lambda,nStructs,nBeamlts,type)
-            %       Get output for structures and terms specified by type:
-            %           * 'full': All structures and terms
-            %           * 'unif': Structures and terms with uniform targets
-            if nargin > 4
-                type = varargin{1};
-            else
-                type = 'full';
-            end
-            matFull = strcmp(type,'full');
-            matUnif = strcmp(type,'unif');
-
-            % Add terms
-            A = [];
-            for ii = 1:nStructs
-                for jj = 1:structs{ii}.nTerms
-                    termUnif = strcmp(structs{ii}.terms{jj}.type,'unif');
-                    if matFull || (matUnif && termUnif)
-                        weight = structs{ii}.terms{jj}.weight;
-                        nVoxels = structs{ii}.nVoxels;
-                        temp = sqrt(weight/nVoxels)*structs{ii}.A;
-                        A = [A; temp];
-                    end
-                end
-            end
-
-            % Add regularization
-            if lambda > 0
-                A = [A; sqrt(lambda)*eye(nBeamlts)];
-            end
-
-            % Create beamlet bounds
-            lb = zeros(nBeamlts,1);
-            ub = inf(nBeamlts,1);
-        end
-
-        function d = getd(structs,lambda,nStructs,nBeamlts,varargin)
-            % GETD Get stacked dose vector.
-            %
-            %   d = getd(structs,lambda,nStructs,nBeamlts)
-            %       Get output for all structures and terms.
-            %
-            %   d = getd(structs,lambda,nStructs,nBeamlts,type)
-            %       Get output for structurs and terms specified by type:
-            %           * 'full':  All structures and terms
-            %           * 'unif': Structures and terms with uniform targets
-
-            % Get type of vector
-            if nargin > 4
-                type = varargin{1};
-            else
-                type = 'full';
-            end
-            vecFull = strcmp(type,'full');
-            vecUnif = strcmp(type,'unif');
-
-            % Add terms
-            d = [];
-            for ii = 1:nStructs
-                nVoxels = structs{ii}.nVoxels;
-                for jj = 1:structs{ii}.nTerms
-                    termUnif = strcmp(structs{ii}.terms{jj}.type,'unif');
-                    if vecFull || (vecUnif && termUnif)
-                        weight = structs{ii}.terms{jj}.weight;
-                        temp = sqrt(weight/nVoxels)*structs{ii}.terms{jj}.d;
-                        if ~termUnif
-                            w = structs{ii}.terms{jj}.w;
-                            temp = temp + sqrt(weight/nVoxels)*w;
-                        end
-                        d = [d; temp];
-                    end
-                end
-            end
-
-            % Add regularization
-            if lambda > 0
-                d = [d; zeros(nBeamlts,1)];
-            end
-        end
-
-        function x = projX(A,d,lb,ub)
-            % PROJX Solve non-negative least-squares problem for beamlets.
-            options = optimoptions(@lsqlin,'Display','off');
-            x = lsqlin(A,d,[],[],[],[],lb,ub,[],options);
+        
+        function [fVal,gVal,hVal] = quadObj(x,H,f)
+           % Objective function for non-negative least-squares problem.
+           Hx = H*x;
+           fVal = x'*(0.5*Hx + f);
+           gVal = Hx + f;
+           hVal = H;
         end
 
         function w = projW(w,k)
@@ -903,7 +896,7 @@ classdef FluenceMapOpt < handle
 %             idx2 = 23:152;
 %             
 %             % Get CT slice
-%             ct = dicomread('CT.2.16.840.1.113662.2.12.0.3173.1271873797.276');
+%             ct = dicomread('Prostate_Dicom/CT.2.16.840.1.113662.2.12.0.3173.1271873797.276');
 %             ct = double(imresize(ct,[184,184]));
 %             ct50 = ct(idx1,idx2);
 %             ctShift = ct50 - min(ct50(:));
