@@ -191,8 +191,6 @@ classdef FluenceMapOpt < handle
             prob.constGen(xRelax);    
         end
         
-        % function printStats()
-        
         function plotObj(prob)
             % PLOTOBJ Plot objective function values.
             
@@ -253,19 +251,20 @@ classdef FluenceMapOpt < handle
             axis square
         end
         
-        function compareDVH(prob,x,legendNames)
+        function compareDVH(prob,xMat,legendNames)
             % COMPAREDVH Plot dose-volume histograms for multiple solutions.
+            nX = size(xMat,2);
             if nargin == 2
-                legendNames = cell(1,size(x,2));
-                for ii = 1:size(x,2)
+                legendNames = cell(1,nX);
+                for ii = 1:nX
                     legendNames{ii} = sprintf('x%d',ii);
                 end
             end                    
             
             % Compute curves and initialize
             dvhMat = [];
-            for ii = 1:size(x,2)
-                [doses,dvh] = prob.calcDVH(x(:,ii));
+            for ii = 1:nX
+                [doses,dvh] = prob.calcDVH(xMat(:,ii));
                 dvhMat = cat(3,dvhMat,dvh);
             end
             myLines = lines;
@@ -278,7 +277,7 @@ classdef FluenceMapOpt < handle
                    prob.plotConstraints(ii,jj);
                    
                    % Plot dvh curves
-                   for kk = 1:size(x,2)
+                   for kk = 1:nX
                        if ii == 1 && jj == 1
                            dvhHandle = plot(doses,dvhMat(ii,:,kk),...
                                'Color',myLines(kk,:),'LineWidth',2);
@@ -364,8 +363,71 @@ classdef FluenceMapOpt < handle
                 'Callback',{@prob.updateZ,hax,dose}); 
         end
         
-        % function compareDose()
+        % need to test...
+        function compareVoxelDose(prob,ii,jj,xMat,plotTitles)
+            % COMPAREVOXELDOSE Plot dose per voxel for multiple solutions.
+            nX = size(xMat,2);
+            if nargin == 4
+                plotTitles = cell(1,nX);
+                for kk = 1:nX
+                    plotTitles{kk} = sprintf('x%d',kk);
+                end
+            end
+            
+            % Plot dose per voxel
+            figure()
+            minDose = 1e6;
+            maxDose = -1e6;
+            constraint = prob.structs{ii}.terms{jj}.dose;
+            for kk = 1:nX
+                dose = prob.structs{ii}.A*xMat(:,kk);
+                minDose = min(minDose,min(dose));
+                maxDose = max(maxDose,max(dose));
+                subplot(1,nX,kk)
+                plot(dose,'.'), hold on
+                plot([0 length(dose)],[constraint constraint],'LineWidth',2)
+                xlabel('Voxel Index')
+                title(plotTitles{kk})
+                if kk == 1
+                    ylabel('Dose (Gy)')
+                end
+            end
+            
+            % Resize axes
+            for kk = 1:nX
+                subplot(1,nX,kk)
+                axis([1 length(dose) minDose maxDose])
+            end
+        end
          
+        % need to test...
+        function printStats(prob,x)
+            % PRINTSTATS Print solution statistics with Markdown formatting.
+            if nargin == 1
+                x = prob.x;
+            end
+            for ii = 1:prob.nStructs
+                fprintf('Structure: %s\n',prob.structs{ii}.name)
+                for jj = 1:prob.structs{ii}.nTerms
+                    termType = prob.structs{ii}.terms{jj}.type;
+                    if strcmp(termType,'unif') % Uniform PTV objective
+                        dose = prob.structs{ii}.A*x;
+                        obj = norm(dose - prob.structs{ii}.terms{jj}.d);
+                        D95 = FluenceMapOpt.getPercentile(dose,0.95);
+                        fprintf('* unif | %.2f | %.2f | %.2f | %.2f | %.2f | %.2f | %.2f\n',...
+                            min(dose),mean(dose),median(dose),D95,...
+                            max(dose),std(dose),obj) 
+                    elseif strcmp(termType,'ldvc') % Lower dose-volume constraint
+                        fprintf('* ldvc | %.2f | %.2f\n',...
+                            prob.getPercent(ii,jj,x), prob.getArea(ii,x))
+                    else % Upper dose-volume constraint
+                        fprintf('* udvc | %.2f | %.2f\n',...
+                            prob.getPercent(ii,jj,x), prob.getArea(ii,x))
+                    end
+                end  
+            end
+        end
+        
         function saveResults(prob,fileName)
             % SAVERESULTS current state and results.
             results = struct('structs',prob.structs,...
@@ -664,6 +726,33 @@ classdef FluenceMapOpt < handle
             axis off
             hold off
         end
+        
+        % need to test...
+        function p = getPercent(prob,ii,jj,x)
+            % GETPERCENT Get percent of voxels violating dose-volume constraint;
+            if nargin == 3
+                x = prob.x;
+            end
+            Ax = prob.structs{ii}.A*x;
+            d = prob.structs{ii}.terms{jj}.dose;
+            n = prob.structs{ii}.nVoxels;
+            if strcmp(prob.structs{ii}.terms{jj}.type,'udvc')
+                p = 100*sum(Ax > d)/n;
+            else
+                p = 100*sum(Ax < d)/n;
+            end
+        end
+        
+        % need to test...
+        function area = getArea(prob,ii,x)
+            % GETAREA Get area under dose-volume histogram curve.
+            if nargin == 3
+                x = prob.x;
+            end
+            dose = prob.structs{ii}.A*x;
+            func = @(d)100*sum(dose >= d)/prob.structs{ii}.nVoxels;
+            area = integral(func,0,max(dose));            
+        end
     end
     
     methods (Hidden, Static)
@@ -774,6 +863,14 @@ classdef FluenceMapOpt < handle
             nX = max(xIdx);
             nY = max(yIdx);
             idx = sub2ind([nX,nY],xIdx,yIdx);
+        end
+        
+        % need to test...
+        function doseP = getPercentile(dose,p)
+            % GETPERCENTILE Get dose at pth percentile.
+            idx = floor((1-p)*length(dose));
+            dose_sort = sort(dose);
+            doseP = dose_sort(idx);
         end
         
         % not implemented...
