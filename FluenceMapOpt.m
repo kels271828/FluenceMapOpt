@@ -191,6 +191,8 @@ classdef FluenceMapOpt < handle
             prob.constGen(xRelax);    
         end
         
+        % function printStats()
+        
         function plotObj(prob)
             % PLOTOBJ Plot objective function values.
             
@@ -208,45 +210,27 @@ classdef FluenceMapOpt < handle
             ylabel('Convergence Criteria')
         end
         
-        function plotDVH(prob)
-            % PLOTDVH Plot dose-volume histogram.
+        function plotDVH(prob,legendNames)
+            % PLOTDVH Plot dose-volume histograms for initial and final dose.
+            if nargin == 1
+                legendNames = prob.names;
+            end
             
             % Compute curves and initialize
-            [doses,dvhInit,dvhFinal] = prob.calcDVH();
+            [doses,dvhInit] = prob.calcDVH(prob.x0);
+            [~,dvhFinal] = prob.calcDVH(prob.x);
             myLines = lines;
             legendHandles = [];
             figure(), hold on
             
-            % Plot curves and targets/constraints
             for ii = 1:prob.nStructs
                plot(doses,dvhInit(ii,:),'--','Color',myLines(ii,:),...
                    'LineWidth',2)
                for jj = 1:prob.structs{ii}.nTerms
-                   isUnif = strcmp(prob.structs{ii}.terms{jj}.type,'unif');
-                   if ~isUnif && prob.structs{ii}.terms{jj}.percent == 0
-                       % Plot star at maximum dose value
-                       plot(prob.structs{ii}.terms{jj}.dose,0,'p',...
-                           'MarkerFaceColor',[0.9290 0.6940 0.1250],...
-                           'MarkerEdgeColor',[0.9290 0.6940 0.1250],...
-                           'MarkerSize',10);
-                   else
-                       % Get vertical coordinates of targets/constraints
-                       if isUnif
-                           percent = [0 100 100];
-                       elseif prob.structs{ii}.terms{jj}.percent > 0
-                           percent = zeros(1,3);
-                           constraint = prob.structs{ii}.terms{jj}.percent;
-                           if strcmp(prob.structs{ii}.terms{jj}.type,'ldvc')
-                               constraint = 100 - constraint;
-                           end
-                           percent(2:3) = constraint;
-                       end
-                       % Get horizontal coordinates of targets/constraints
-                       dose = zeros(1,3);
-                       dose(1:2) = prob.structs{ii}.terms{jj}.dose;
-                       plot(dose,percent,':','Color',[0.4,0.4,0.4],...
-                           'LineWidth',2)
-                   end
+                   % Plot targets/constraints
+                   prob.plotConstraints(ii,jj);
+                   
+                   % Plot dvh curves
                    if jj == 1
                        dvhHandle = plot(doses,dvhFinal(ii,:),...
                            'Color',myLines(ii,:),'LineWidth',2);
@@ -259,7 +243,57 @@ classdef FluenceMapOpt < handle
             end
                 
             % Annotations
-            legend(legendHandles,prob.names)
+            legend(legendHandles,legendNames)
+            xlabel('Dose (Gy)')
+            ylabel('Relative Volume (%)')
+            ax = gca;
+            ax.XLim = [0 doses(end)];
+            ax.YLim = [0 100];
+            box on
+            axis square
+        end
+        
+        function compareDVH(prob,x,legendNames)
+            % COMPAREDVH Plot dose-volume histograms for multiple solutions.
+            if nargin == 2
+                legendNames = cell(1,size(x,2));
+                for ii = 1:size(x,2)
+                    legendNames{ii} = sprintf('x%d',ii);
+                end
+            end                    
+            
+            % Compute curves and initialize
+            dvhMat = [];
+            for ii = 1:size(x,2)
+                [doses,dvh] = prob.calcDVH(x(:,ii));
+                dvhMat = cat(3,dvhMat,dvh);
+            end
+            myLines = lines;
+            legendHandles = [];
+            figure(), hold on
+            
+            for ii = 1:prob.nStructs
+               for jj = 1:prob.structs{ii}.nTerms
+                   % Plot targets/constraints
+                   prob.plotConstraints(ii,jj);
+                   
+                   % Plot dvh curves
+                   for kk = 1:size(x,2)
+                       if ii == 1 && jj == 1
+                           dvhHandle = plot(doses,dvhMat(ii,:,kk),...
+                               'Color',myLines(kk,:),'LineWidth',2);
+                           legendHandles = [legendHandles dvhHandle];
+                       else
+                           plot(doses,dvhMat(ii,:,kk),...
+                               'Color',myLines(kk,:),...
+                               'LineWidth',2)
+                       end 
+                   end
+               end
+            end
+                
+            % Annotations
+            legend(legendHandles,legendNames)
             xlabel('Dose (Gy)')
             ylabel('Relative Volume (%)')
             ax = gca;
@@ -329,6 +363,8 @@ classdef FluenceMapOpt < handle
                 'Position',[200 20 120 20],...
                 'Callback',{@prob.updateZ,hax,dose}); 
         end
+        
+        % function compareDose()
          
         function saveResults(prob,fileName)
             % SAVERESULTS current state and results.
@@ -564,21 +600,47 @@ classdef FluenceMapOpt < handle
             dt = (-1)^s*prob.structs{ii}.terms{jj}.d(idxSort(1:nVoxels-k));
         end
         
-        function [doses,dvhInit,dvhFinal] = calcDVH(prob)
+        function [doses,dvh] = calcDVH(prob,x)
             % CALCDVH Calculate dose-volume histograms.
             nPoints = 1000;
             doses = linspace(0,100,nPoints);
-            dvhInit = zeros(prob.nStructs,nPoints);
-            dvhFinal = zeros(prob.nStructs,nPoints);
+            dvh = zeros(prob.nStructs,nPoints);
             for ii = 1:prob.nStructs
-                doseInit = prob.structs{ii}.A*prob.x0;
-                doseFinal = prob.structs{ii}.A*prob.x;
+                dose = prob.structs{ii}.A*x;
                 nVoxels = prob.structs{ii}.nVoxels;
                 for jj = 1:nPoints
-                   dvhInit(ii,jj) = 100*sum(doseInit >= doses(jj))/nVoxels;
-                   dvhFinal(ii,jj) = 100*sum(doseFinal >= doses(jj))/nVoxels;
+                   dvh(ii,jj) = 100*sum(dose >= doses(jj))/nVoxels;
                 end
             end       
+        end
+        
+        function plotConstraints(prob,ii,jj)
+            % PLOTCONSTRAINTS Plot constraint on dose-volume histogram.
+            isUnif = strcmp(prob.structs{ii}.terms{jj}.type,'unif');
+            if ~isUnif && prob.structs{ii}.terms{jj}.percent == 0
+                % Plot star at maximum dose value
+                plot(prob.structs{ii}.terms{jj}.dose,0,'p',...
+                    'MarkerFaceColor',[0.9290 0.6940 0.1250],...
+                    'MarkerEdgeColor',[0.9290 0.6940 0.1250],...
+                    'MarkerSize',10);
+            else
+                % Get vertical coordinates of targets/constraints
+                if isUnif
+                    percent = [0 100 100];
+                elseif prob.structs{ii}.terms{jj}.percent > 0
+                    percent = zeros(1,3);
+                    constraint = prob.structs{ii}.terms{jj}.percent;
+                    if strcmp(prob.structs{ii}.terms{jj}.type,'ldvc')
+                        constraint = 100 - constraint;
+                    end
+                    percent(2:3) = constraint;
+                end
+                % Get horizontal coordinates of targets/constraints
+                dose = zeros(1,3);
+                dose(1:2) = prob.structs{ii}.terms{jj}.dose;
+                plot(dose,percent,':','Color',[0.4,0.4,0.4],...
+                    'LineWidth',2)
+            end
         end
         
         function updateZ(prob,hObj,~,~,dose)
