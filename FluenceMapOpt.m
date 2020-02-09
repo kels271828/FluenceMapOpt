@@ -292,7 +292,7 @@ classdef FluenceMapOpt < handle
             end
                 
             % Annotations
-            legend(legendHandles,legendNames)
+            legend(legendHandles,legendNames,'Location','northeastoutside')
             xlabel('Dose (Gy)')
             ylabel('Relative Volume (%)')
             ax = gca;
@@ -364,10 +364,10 @@ classdef FluenceMapOpt < handle
         end
         
         % need to test...
-        function compareVoxelDose(prob,ii,jj,xMat,plotTitles)
+        function compareVoxelDose(prob,ii,xMat,plotTitles)
             % COMPAREVOXELDOSE Plot dose per voxel for multiple solutions.
             nX = size(xMat,2);
-            if nargin == 4
+            if nargin == 3
                 plotTitles = cell(1,nX);
                 for kk = 1:nX
                     plotTitles{kk} = sprintf('x%d',kk);
@@ -378,14 +378,16 @@ classdef FluenceMapOpt < handle
             figure()
             minDose = 1e6;
             maxDose = -1e6;
-            constraint = prob.structs{ii}.terms{jj}.dose;
             for kk = 1:nX
                 dose = prob.structs{ii}.A*xMat(:,kk);
                 minDose = min(minDose,min(dose));
                 maxDose = max(maxDose,max(dose));
                 subplot(1,nX,kk)
                 plot(dose,'.'), hold on
-                plot([0 length(dose)],[constraint constraint],'LineWidth',2)
+                for jj = 1:prob.structs{ii}.nTerms
+                    constraint = prob.structs{ii}.terms{jj}.dose;
+                    plot([0 length(dose)],[constraint constraint],'LineWidth',2)
+                end
                 xlabel('Voxel Index')
                 title(plotTitles{kk})
                 if kk == 1
