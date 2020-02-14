@@ -39,7 +39,7 @@ classdef FluenceMapOpt < handle
         lambda = 1e-8;     % L2 regularization coefficient
         nStructs           % Number of body structures
         nAngles            % Number of angles
-        nBeamlts           % Number of beamlets
+        nBeamlets          % Number of beamlets
     end
     
     properties (Access = private)
@@ -56,14 +56,14 @@ classdef FluenceMapOpt < handle
     end
 
     properties
-        x0             % Initial beamlet intensities
-        x              % Final beamlet intensities
-        obj            % Objective function values
-        wDiff          % Convergence criteria
-        nIter          % Number of iterations used
-        time           % Time to compute solution (seconds)
-        tol = 1e-3;    % Stopping tolerance
-        maxIter = 500; % Maximum number of iterations
+        x0              % Initial beamlet intensities
+        x               % Final beamlet intensities
+        obj             % Objective function values
+        wDiff           % Convergence criteria
+        nIter           % Number of iterations used
+        time            % Time to compute solution (seconds)
+        tol = 1e-3;     % Stopping tolerance
+        maxIter = 1000; % Maximum number of iterations
     end
     
     methods
@@ -97,7 +97,7 @@ classdef FluenceMapOpt < handle
             prob.nAngles = length(prob.angles);
             
             % Comput internal variables
-            [prob.D,prob.nBeamlts] = FluenceMapOpt.getD(prob.angles);
+            [prob.D,prob.nBeamlets] = FluenceMapOpt.getD(prob.angles);
             prob.structs = FluenceMapOpt.getStructVars(structs,...
                 prob.nStructs,prob.overlap,prob.D);
             prob.names = FluenceMapOpt.getNames(prob.structs,prob.nStructs);
@@ -113,7 +113,7 @@ classdef FluenceMapOpt < handle
             prob.x = prob.x0;
         end
         
-        function calcBeamlets(prob,print)
+        function calcBeams(prob,print)
             % CALCBEAMLETS Calculate beamlet intensities.
             if nargin == 1
                 print = true;
@@ -145,12 +145,12 @@ classdef FluenceMapOpt < handle
                 
                 % Check convergence
                 if wDiffSum <= prob.tol
-                    prob.time = toc;
                     prob.obj = prob.obj(1:prob.nIter+1);
                     prob.wDiff = prob.wDiff(1:prob.nIter);
                     break
                 end
             end
+            prob.time = toc;
         end
         
         % need to test...
@@ -159,20 +159,23 @@ classdef FluenceMapOpt < handle
             if nargin == 1
                 x = prob.x0;
             end
+            tic;
             f = -prob.Au'*prob.du;
             [Ac,dc] = prob.getConstraints(x);
             options = optimoptions(@quadprog,'Display','final');
             prob.x = quadprog(prob.Hu,f,Ac,dc,[],[],prob.lb,prob.ub,[],options);
+            prob.time = toc;
         end
         
         % need to test...
         function convRelax(prob,slope)
-            % CONVRELAX Approach inspired by conrad paper.
+            % CONVRELAX Approach inspired by Fu paper.
             if nargin == 1
                 slope = 1;
             end
+            tic;
             cvx_begin quiet
-                variable xRelax(prob.nBeamlts)
+                variable xRelax(prob.nBeamlets)
                 minimize(sum_square(prob.Au*xRelax - prob.du))
                 subject to
                     prob.lb <= xRelax;
@@ -188,7 +191,32 @@ classdef FluenceMapOpt < handle
                         end
                     end
             cvx_end
-            prob.constGen(xRelax);    
+            prob.constGen(xRelax);
+            prob.time = toc;
+        end
+        
+        % need to test...
+        function iterDose(prob,tol,maxIter)
+            % ITERDOSE Approach inspired by Llacer paper.
+            if nargin < 2
+                tol = 5e-3;
+            end
+            if nargin < 3
+                maxIter = 1000;
+            end
+            tic;
+            prob.x = prob.x0;
+            step = size(prob.Au,1) - prob.nBeamlets;
+            for ii = 1:maxIter
+                x_old = prob.x;
+                grad = prob.getIterGrad(prob.x);
+                prob.x = prob.x - step*grad;
+                prob.x(prob.x < 0) = 0;
+                if norm(x_old - prob.x)/prob.nBeamlets < tol
+                    break
+                end
+            end
+            prob.time = toc;
         end
         
         function plotObj(prob)
@@ -280,12 +308,11 @@ classdef FluenceMapOpt < handle
                    for kk = 1:nX
                        if ii == 1 && jj == 1
                            dvhHandle = plot(doses,dvhMat(ii,:,kk),...
-                               'Color',myLines(kk,:),'LineWidth',2);
+                               'Color',myLines(kk,:));
                            legendHandles = [legendHandles dvhHandle];
                        else
                            plot(doses,dvhMat(ii,:,kk),...
-                               'Color',myLines(kk,:),...
-                               'LineWidth',2)
+                               'Color',myLines(kk,:))
                        end 
                    end
                end
@@ -482,13 +509,13 @@ classdef FluenceMapOpt < handle
 
             % Add regularization
             if prob.lambda > 0
-                A = [A; sqrt(prob.lambda)*eye(prob.nBeamlts)];
+                A = [A; sqrt(prob.lambda)*eye(prob.nBeamlets)];
             end
 
             % Create Hessian and beamlet bounds
             H = A'*A;
-            lb = zeros(prob.nBeamlts,1);
-            ub = inf(prob.nBeamlts,1);
+            lb = zeros(prob.nBeamlets,1);
+            ub = inf(prob.nBeamlets,1);
         end
         
         function d = getd(prob,type)
@@ -521,7 +548,7 @@ classdef FluenceMapOpt < handle
 
             % Add regularization
             if prob.lambda > 0
-                d = [d; zeros(prob.nBeamlts,1)];
+                d = [d; zeros(prob.nBeamlets,1)];
             end
         end
         
@@ -531,7 +558,7 @@ classdef FluenceMapOpt < handle
                 A = prob.Au;
                 H = prob.Hu;
                 d = prob.du;
-                x0 = zeros(prob.nBeamlts,1);
+                x0 = zeros(prob.nBeamlets,1);
             else
                 A = prob.A;
                 H = prob.H;
@@ -664,6 +691,34 @@ classdef FluenceMapOpt < handle
             dt = (-1)^s*prob.structs{ii}.terms{jj}.d(idxSort(1:nVoxels-k));
         end
         
+        % need to test...
+        function grad = getIterGrad(prob,x)
+            % ITEROBJ Get gradient for iterative method.
+            grad = prob.Au'*(prob.Au*x - prob.du);
+            for ii = 1:prob.nStructs
+                At = prob.structs{ii}.A;
+                nVoxels = prob.structs{ii}.nVoxels;
+                for jj = 1:prob.structs{ii}.nTerms
+                    if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                        dt = prob.getIterD(x,ii,jj);
+                        weight = prob.structs{ii}.terms{jj}.weight;
+                        res = (At*x - dt).*(At*x > dt);
+                        termGrad = weight/nVoxels*At'*res;
+                        grad = grad + termGrad;
+                    end
+                end
+            end
+        end
+        
+        % need to test...
+        function dt = getIterD(prob,x,ii,jj)
+            % GETITERD Get maximum doses for iterative method.
+            n = prob.structs{ii}.nVoxels - prob.structs{ii}.terms{jj}.k;
+            [~,idxSort] = sort(prob.structs{ii}.A*x);
+            dt = prob.structs{ii}.terms{jj}.d;
+            dt(idxSort(n:end)) = 1e6;
+        end
+        
         function [doses,dvh] = calcDVH(prob,x)
             % CALCDVH Calculate dose-volume histograms.
             nPoints = 1000;
@@ -758,7 +813,7 @@ classdef FluenceMapOpt < handle
     end
     
     methods (Hidden, Static)
-        function [D,nBeamlts] = getD(angles)
+        function [D,nBeamlets] = getD(angles)
             % GETD Get full beamlet-to-voxel matrix.
             temp = [];
             for ii = angles
@@ -766,7 +821,7 @@ classdef FluenceMapOpt < handle
                 temp = [temp D];
             end
             D = temp;
-            nBeamlts = size(D,2);
+            nBeamlets = size(D,2);
         end
 
         function structs = getStructVars(structs,nStructs,overlap,D)
