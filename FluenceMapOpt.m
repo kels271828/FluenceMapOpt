@@ -358,7 +358,7 @@ classdef FluenceMapOpt < handle
             set(subplot(1,prob.nAngles,ii),'Position',pos);
         end
         
-        function plotDose(prob)
+        function plotDose(prob,threshold)
             % PLOTDOSE Plot dose with slider for z position.
             figure()
             warning('off','MATLAB:contour:ConstantData');
@@ -367,6 +367,11 @@ classdef FluenceMapOpt < handle
             % Plot dose at z = 50
             z = 50;
             dose = reshape(prob.D*prob.x,184,184,90);
+            if nargin > 1
+                idxZero = dose(:,:,:) == 0;
+                dose = 2.0*(dose > threshold) - 1;
+                dose(idxZero) = 0;
+            end
             imagesc(dose(:,:,z),'AlphaData',dose(:,:,z)~=0), hold on
             
             % Plot body structure outlines
@@ -376,9 +381,12 @@ classdef FluenceMapOpt < handle
             
             % Annotations
             title(sprintf('z = %d',z))
-            caxis([min(dose(:)) max(dose(:))]);
-            cb = colorbar;
-            cb.Label.String = 'Dose (Gy)';
+            if nargin == 1
+                caxis([min(dose(:)) max(dose(:))]);
+                cb = colorbar;
+                cb.Label.String = 'Dose (Gy)';
+                threshold = false;
+            end
             axis equal
             axis off
             hold off
@@ -387,7 +395,7 @@ classdef FluenceMapOpt < handle
             uicontrol('Style','slider',...
                 'Min',1,'Max',90,'Value',z,...
                 'Position',[200 20 120 20],...
-                'Callback',{@prob.updateZ,hax,dose}); 
+                'Callback',{@prob.updateZ,hax,dose,threshold}); 
         end
         
         % need to test...
@@ -762,7 +770,7 @@ classdef FluenceMapOpt < handle
             end
         end
         
-        function updateZ(prob,hObj,~,~,dose)
+        function updateZ(prob,hObj,~,~,dose,threshold)
             % UPDATEZ Callback function for plotDose() slider.
             
             % Plot dose at current z value
@@ -776,9 +784,11 @@ classdef FluenceMapOpt < handle
             
             % Annotations
             title(sprintf('z = %d',z))
-            caxis([min(dose(:)) max(dose(:))]);
-            cb = colorbar;
-            cb.Label.String = 'Dose (Gy)';
+            if ~threshold
+                caxis([min(dose(:)) max(dose(:))]);
+                cb = colorbar;
+                cb.Label.String = 'Dose (Gy)';
+            end
             axis equal
             axis off
             hold off
