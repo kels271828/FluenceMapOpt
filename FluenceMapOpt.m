@@ -33,13 +33,14 @@ classdef FluenceMapOpt < handle
     %   modified to work with other datasets.
     
     properties (SetAccess = private)
-        structs            % Body structures
-        angles = 0:52:358; % Gantry angles
-        overlap = false;   % Allow overlaps in structures
-        lambda = 1e-8;     % L2 regularization coefficient
-        nStructs           % Number of body structures
-        nAngles            % Number of angles
-        nBeamlets          % Number of beamlets
+        structs               % Body structures
+        angles = 0:52:358;    % Gantry angles
+        overlap = false;      % Allow overlaps in structures
+        lambda = 1e-8;        % L2 regularization coefficient
+        nnls = 'minConf_TMP'; % Method to compute NNLS problem
+        nStructs              % Number of body structures
+        nAngles               % Number of angles
+        nBeamlets             % Number of beamlets
     end
     
     properties (Access = private)
@@ -162,7 +163,7 @@ classdef FluenceMapOpt < handle
             tic;
             f = -prob.Au'*prob.du;
             [Ac,dc] = prob.getConstraints(x);
-            options = optimoptions(@quadprog,'Display','final');
+            options = optimoptions(@quadprog,'Display','off');
             prob.x = quadprog(prob.Hu,f,Ac,dc,[],[],prob.lb,prob.ub,[],options);
             prob.time = toc;
         end
@@ -574,10 +575,15 @@ classdef FluenceMapOpt < handle
                 x0 = prob.x;
             end
             f = -A'*d;
-            func = @(x)FluenceMapOpt.quadObj(x,H,f);
-            options.verbose = 0;
-            options.method = 'newton';
-            x = minConf_TMP(func,x0,prob.lb,prob.ub,options);
+            if strcmp(prob.nnls,'quadprog')   
+                options = optimoptions(@quadprog,'Display','off');
+                x = quadprog(H,f,[],[],[],[],prob.lb,prob.ub,[],options);
+            else
+                func = @(x)FluenceMapOpt.quadObj(x,H,f);
+                options.verbose = 0;
+                options.method = 'newton';
+                x = minConf_TMP(func,x0,prob.lb,prob.ub,options);
+            end
         end
         
         function initProb(prob,print)
