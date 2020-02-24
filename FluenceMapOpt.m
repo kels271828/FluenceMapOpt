@@ -50,8 +50,12 @@ classdef FluenceMapOpt < handle
         Au    % Stacked beamlet-to-voxel matrix for uniform target terms
         Hu    % Stacked beamlet to voxel Hessian for uniform target terms
         du    % Stacked dose vector for uniform target terms
+        As    % Stacked beamlet-to-voxel matrix for model with slack
+        Hs    % Stacked beamlet-to-voxel Hessian for model with slack
         lb    % Lower bound for beamlets
         ub    % Upper bound for beamlets
+        lbs   % Lower bound for beamlets and slack
+        ubs   % Upper bound for beamlets and slack
         names % Body structure names
         mask  % Body structure contours for plotting     
     end
@@ -68,6 +72,7 @@ classdef FluenceMapOpt < handle
     end
     
     methods
+        % added nnls, test relevant functions again...
         function prob = FluenceMapOpt(structs,varargin)
             % FLUENCEMAPOPT Initialize problem.
             %
@@ -105,6 +110,7 @@ classdef FluenceMapOpt < handle
             prob.mask = FluenceMapOpt.getMaskStruct(prob.names,prob.overlap);
             [prob.A,prob.H,prob.lb,prob.ub] = prob.getA('full');
             [prob.Au,prob.Hu,~,~] = prob.getA('unif');
+            [prob.As,prob.Hs,prob.lbs,prob.ubs] = prob.getA('slack');
             prob.du = prob.getd('unif');
             
             % Compute initial beamlets
@@ -151,12 +157,13 @@ classdef FluenceMapOpt < handle
                     break
                 end
             end
+            prob.x = prob.projX('full');
             prob.time = toc;
         end
         
         % need to test...
         function constGen(prob,x)
-            % CONSTGEN Constraint generation method.
+            % CONSTGEN Approach inspired by Saberian paper.
             if nargin == 1
                 x = prob.x0;
             end
@@ -218,6 +225,44 @@ classdef FluenceMapOpt < handle
                 end
             end
             prob.time = toc;
+        end
+        
+        % need to test...
+        function slackDose(prob,print)
+            % SLACKDOSE Approach inspired by Zhang paper.
+            if nargin == 1
+                print = true;
+            end
+            
+            tic;
+            prob.initU();
+            y = zeros(size(prob.As,2),1);
+            for kk = 1:prob.maxIter
+                % Update x and u vectors
+                y = prob.projX('slack',y);
+                d = prob.getd('slack');
+                obj = norm(prob.As*y - d)^2/2;
+                prob.x = y(1:prob.nBeamlets);
+                uDiffSum = 0;
+                for ii = 1:prob.nStructs
+                    for jj = 1:prob.structs{ii}.nTerms
+                        if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                            uDiffSum = uDiffSum + prob.updateU(ii,jj);
+                        end
+                    end
+                end
+                if print
+                    fprintf('iter: %d, obj: %7.4e, uDiff: %7.4e\n',kk,obj,uDiffSum);
+                end
+
+                % Check convergence
+                if uDiffSum <= prob.tol
+                    break
+                end
+                y = prob.projX('slack',y);
+                prob.x = y(1:prob.nBeamlets);
+                prob.time = toc;
+            end
         end
         
         function plotObj(prob)
@@ -492,6 +537,7 @@ classdef FluenceMapOpt < handle
             end
         end 
         
+        % test slack matrix...
         function [A,H,lb,ub] = getA(prob,type)
             % GETA Get stacked beamlet-to-voxel matrix, Hessian, and 
             %   beamlet lower and upper bounds.
@@ -499,8 +545,10 @@ classdef FluenceMapOpt < handle
             %   Get output for structures and terms specified by type:
             %       * 'full': All structures and terms
             %       * 'unif': Structures and terms with uniform targets
+            %       * 'slack': Columns added for slack variables
             matFull = strcmp(type,'full');
             matUnif = strcmp(type,'unif');
+            matSlack = strcmp(type,'slack');
 
             % Add terms
             A = [];
@@ -508,7 +556,7 @@ classdef FluenceMapOpt < handle
                 nVoxels = prob.structs{ii}.nVoxels;
                 for jj = 1:prob.structs{ii}.nTerms
                     termUnif = strcmp(prob.structs{ii}.terms{jj}.type,'unif');
-                    if matFull || (matUnif && termUnif)
+                    if (matFull || matSlack) || (matUnif && termUnif)
                         weight = prob.structs{ii}.terms{jj}.weight;
                         temp = sqrt(weight/nVoxels)*prob.structs{ii}.A;
                         A = [A; temp];
@@ -520,21 +568,42 @@ classdef FluenceMapOpt < handle
             if prob.lambda > 0
                 A = [A; sqrt(prob.lambda)*eye(prob.nBeamlets)];
             end
+            
+            % Add columns for slack variables
+            if matSlack
+                prevVoxels = 1;
+                for ii = 1:prob.nStructs
+                    nVoxels = prob.structs{ii}.nVoxels;
+                    for jj = 1:prob.structs{ii}.nTerms
+                        weight = prob.structs{ii}.terms{jj}.weight;
+                        if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                            newCol = zeros(size(A,1)  ,nVoxels);
+                            eyeTerm = sqrt(weight/nVoxels)*eye(nVoxels);
+                            newCol(prevVoxels:prevVoxels+nVoxels-1,:) = eyeTerm;
+                            A = [A newCol];
+                        end
+                        prevVoxels = prevVoxels + nVoxels;
+                    end
+                end
+            end
 
             % Create Hessian and beamlet bounds
             H = A'*A;
-            lb = zeros(prob.nBeamlets,1);
-            ub = inf(prob.nBeamlets,1);
+            lb = zeros(size(A,2),1);
+            ub = inf(size(A,2),1);
         end
         
+        % test slack d...
         function d = getd(prob,type)
             % GETD Get stacked dose vector.
             %
             %   Get output for structurs and terms specified by type:
-            %       * 'full':  All structures and terms
+            %       * 'full': All structures and terms
             %       * 'unif': Structures and terms with uniform targets
+            %       * 'slack': Use u vectors rather than d vectors for dvcs
             vecFull = strcmp(type,'full');
             vecUnif = strcmp(type,'unif');
+            vecSlack = strcmp(type,'slack');
 
             % Add terms
             d = [];
@@ -542,13 +611,18 @@ classdef FluenceMapOpt < handle
                 nVoxels = prob.structs{ii}.nVoxels;
                 for jj = 1:prob.structs{ii}.nTerms
                     termUnif = strcmp(prob.structs{ii}.terms{jj}.type,'unif');
-                    if vecFull || (vecUnif && termUnif)
+                    if (vecFull || vecSlack) || (vecUnif && termUnif)
                         weight = prob.structs{ii}.terms{jj}.weight;
                         termD = prob.structs{ii}.terms{jj}.d;
                         temp = sqrt(weight/nVoxels)*termD;
                         if ~termUnif
-                            w = prob.structs{ii}.terms{jj}.w;
-                            temp = temp + sqrt(weight/nVoxels)*w;
+                            if vecSlack
+                                termU = prob.structs{ii}.terms{jj}.u;
+                                temp = sqrt(weight/nVoxels)*termU;
+                            else
+                                w = prob.structs{ii}.terms{jj}.w;
+                                temp = temp + sqrt(weight/nVoxels)*w;
+                            end
                         end
                         d = [d; temp];
                     end
@@ -561,28 +635,45 @@ classdef FluenceMapOpt < handle
             end
         end
         
-        function x = projX(prob,type)
+        % test slack output...
+        function x = projX(prob,type,y0)
             % PROJX Solve non-negative least-squares problem for beamlets.
-            if strcmp(type,'unif')
-                A = prob.Au;
-                H = prob.Hu;
-                d = prob.du;
-                x0 = zeros(prob.nBeamlets,1);
+            %
+            %   Solve nnls problem specified by type:
+            %       * 'full': Full problem
+            %       * 'unif': Initialization problem
+            %       * 'slack': Problem with slack variables
+            if strcmp(type,'slack')
+                A = prob.As;
+                H = prob.Hs;
+                d = prob.getd('slack');
+                x0 = y0;
+                lb = prob.lbs;
+                ub = prob.ubs;
             else
-                A = prob.A;
-                H = prob.H;
-                d = prob.getd('full');
-                x0 = prob.x;
+                if strcmp(type,'full')
+                    A = prob.A;
+                    H = prob.H;
+                    d = prob.getd('full');
+                    x0 = prob.x;
+                elseif strcmp(type,'unif')
+                    A = prob.Au;
+                    H = prob.Hu;
+                    d = prob.du;
+                    x0 = zeros(prob.nBeamlets,1);
+                end
+                lb = prob.lb;
+                ub = prob.ub;
             end
             f = -A'*d;
             if strcmp(prob.nnls,'quadprog')   
                 options = optimoptions(@quadprog,'Display','off');
-                x = quadprog(H,f,[],[],[],[],prob.lb,prob.ub,[],options);
+                x = quadprog(H,f,[],[],[],[],lb,ub,[],options);
             else
                 func = @(x)FluenceMapOpt.quadObj(x,H,f);
                 options.verbose = 0;
                 options.method = 'newton';
-                x = minConf_TMP(func,x0,prob.lb,prob.ub,options);
+                x = minConf_TMP(func,x0,lb,ub,options);
             end
         end
         
@@ -599,13 +690,44 @@ classdef FluenceMapOpt < handle
             for ii = 1:prob.nStructs
                 for jj = 1:prob.structs{ii}.nTerms
                     if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                        % PTV initialization
                         initDose = prob.structs{ii}.A*prob.x0;
                         res = initDose - prob.structs{ii}.terms{jj}.d;
                         s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
                         k = prob.structs{ii}.terms{jj}.k;
                         w = FluenceMapOpt.projW((-1)^s*res,k);
                         prob.structs{ii}.terms{jj}.w = w;
+                        
+                        % Zhang paper initialization
+                        % d = prob.structs{ii}.terms{jj}.d;
+                        % prob.structs{ii}.terms{jj}.w = zeros(size(d));
+                        
+                        % OAR initialization (x0 = 0)
+                        % d = prob.structs{ii}.terms{jj}.d;
+                        % prob.structs{ii}.terms{jj}.w = -d;
                    end
+                end
+            end
+        end
+        
+        function initU(prob)
+            % INITU Initialize u vectors for dose-volume constraint terms.
+            for ii = 1:prob.nStructs
+                for jj = 1:prob.structs{ii}.nTerms
+                    if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                        % PTV initialization
+                        % initDose = prob.structs{ii}.A*prob.x0;
+                        % u = FluenceMapOpt.projU(0*initDose,initDose,ii,jj);
+                        % prob.structs{ii}.terms{jj}.u = u;
+                        
+                        % Zhang paper initialization
+                        d = prob.structs{ii}.terms{jj}.d;
+                        prob.structs{ii}.terms{jj}.u = d;
+                        
+                        % OAR initialization
+                        % d = prob.structs{ii}.terms{jj}.d;
+                        % prob.structs{ii}.terms{jj}.u = zeros(size(d));
+                    end
                 end
             end
         end
@@ -676,6 +798,19 @@ classdef FluenceMapOpt < handle
             wProj = FluenceMapOpt.projW(wStep,k);
             wDiff = norm(wProj - wPrev)/step;
             prob.structs{ii}.terms{jj}.w = wProj;
+        end
+        
+        % need to test...
+        function uDiff = updateU(prob,ii,jj)
+            % UPDATE U Update dose variables.
+            Ax = prob.structs{ii}.A*prob.x;
+            uPrev = prob.structs{ii}.terms{jj}.u;
+            d = prob.structs{ii}.terms{jj}.d(1);
+            n = prob.structs{ii}.nVoxels - prob.structs{ii}.terms{jj}.k;
+            u = FluenceMapOpt.projU(uPrev,max(uPrev,Ax),d,n);
+            step = prob.structs{ii}.terms{jj}.step;
+            uDiff = norm(uPrev - u)/step;
+            prob.structs{ii}.terms{jj}.u = u;
         end
         
         % need to test...
@@ -925,6 +1060,28 @@ classdef FluenceMapOpt < handle
                 [~,idxSort] = sort(wPos,'descend');
                 wPos(idxSort(k+1:end)) = 0;
                 w(idxPos) = wPos;
+            end
+        end
+        
+        % need to test...
+        function u = projU(uPrev,u,dose,nVoxels)
+            % PROJU Project u onto set D_v^k for slack model. 
+            %
+            %   D_v^k = {u : u >= uPrev & #(u <= dose) >= nVoxel}
+            count = 0;
+            [~,idx] = sort(u);
+            for ii = 1:length(u)
+                if u(idx(ii)) <= dose
+                    count = count + 1;
+                else
+                    if uPrev(idx(ii)) <= dose
+                        u(idx(ii)) = dose;
+                        count = count + 1;
+                    end
+                end
+                if count >= nVoxels
+                    break
+                end
             end
         end
         
