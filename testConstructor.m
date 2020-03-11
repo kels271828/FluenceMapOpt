@@ -24,9 +24,10 @@ function testDefaultParameters(testCase)
     assert(prob.lambda == 1e-8,'Incorrect lambda')
     assert(prob.overlap == false,'Incorrect overlap')
     assert(prob.tol == 1e-3,'Incorrect tol')
-    assert(prob.maxIter == 500,'Incorrect maxIter')
+    assert(prob.maxIter == 1000,'Incorrect maxIter')
     assert(prob.nStructs == 3,'Incorrect number of structures')
     assert(prob.nAngles == 7,'Incorrect number of angles')
+    assert(strcmp(prob.nnls,'minConf_TMP'),'Incorrect nnls solver')
 end
 
 function testVararginParameters(testCase)
@@ -81,10 +82,10 @@ function testSizeA(testCase)
     prob = testCase.TestData.prob;
     [A,~,~,~] = prob.getA('full');
     assert(size(A,1) == 17882,'Incorrect rows')
-    assert(size(A,2) == prob.nBeamlts,'Incorrect columns')
+    assert(size(A,2) == prob.nBeamlets,'Incorrect columns')
     [A,~,~,~] = prob.getA('unif');
     assert(size(A,1) == 7756,'Incorrect rows')
-    assert(size(A,2) == prob.nBeamlts,'Incorrect columns')
+    assert(size(A,2) == prob.nBeamlets,'Incorrect columns')
 end
 
 function testGetD(testCase)

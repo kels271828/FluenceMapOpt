@@ -35,6 +35,16 @@ function testInitW(testCase)
     end
 end
 
+function testInitU(testCase)
+    prob = testCase.TestData.prob;
+    prob.initU();
+    for ii = 2:3
+        d = prob.structs{ii}.terms{1}.d;
+        u = prob.structs{ii}.terms{1}.u;
+        assert(norm(d - u) <= 1e-4,'Incorrect initial u vector')
+    end
+end
+
 function testInitObj(testCase)
     prob = testCase.TestData.prob;
     prob.initProb(false);
