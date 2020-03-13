@@ -25,6 +25,18 @@ function testProjW(~)
     assert(sum(w2 > 0) <= k,'Wrong number positive')
 end
 
+function testProjU(~)
+    uPrev = [1 2 3 4 5 6 6 5 5 5];
+    u = [1 2 3 4 5 6 7 8 9 10];
+    dose = 5;
+    nVoxels = 7;
+    uNew = FluenceMapOpt.projU(uPrev,u,dose,nVoxels);
+    nOver = sum(uNew >= uPrev);
+    assert(nOver == length(uNew),'uNew not >= uPrev')
+    nUnder = sum(uNew <= dose);
+    assert(nUnder >= nVoxels,'uNew not in dose set')
+end
+
 function testInitW(testCase)
     prob = testCase.TestData.prob;
     prob.initProb(false);
@@ -62,4 +74,3 @@ function testUpdateX(testCase)
 end
 
 % test update w?
-% test calcBeamlets()?

@@ -72,7 +72,6 @@ classdef FluenceMapOpt < handle
     end
     
     methods
-        % added nnls, test relevant functions again...
         function prob = FluenceMapOpt(structs,varargin)
             % FLUENCEMAPOPT Initialize problem.
             %
@@ -87,9 +86,10 @@ classdef FluenceMapOpt < handle
             %           'angles',0:52:358,...
             %           'overlap',false,...
             %           'lambda',1e-8,...
+            %           'nnls','minConf_TMP',...
             %           'x0',zeros(986,1),...
             %           'tol',1e-3,...
-            %           'maxIter',500);
+            %           'maxIter',1000);
         
             % Set input variables
             if nargin == 0
@@ -110,7 +110,6 @@ classdef FluenceMapOpt < handle
             prob.mask = FluenceMapOpt.getMaskStruct(prob.names,prob.overlap);
             [prob.A,prob.H,prob.lb,prob.ub] = prob.getA('full');
             [prob.Au,prob.Hu,~,~] = prob.getA('unif');
-            [prob.As,prob.Hs,prob.lbs,prob.ubs] = prob.getA('slack');
             prob.du = prob.getd('unif');
             
             % Compute initial beamlets
@@ -161,87 +160,92 @@ classdef FluenceMapOpt < handle
             prob.time = toc;
         end
         
-        % need to test...
-        function constGen(prob,x)
-            % CONSTGEN Approach inspired by Saberian paper.
-            if nargin == 1
-                x = prob.x0;
-            end
-            tic;
-            f = -prob.Au'*prob.du;
-            [Ac,dc] = prob.getConstraints(x);
-            options = optimoptions(@quadprog,'Display','off');
-            prob.x = quadprog(prob.Hu,f,Ac,dc,[],[],prob.lb,prob.ub,[],options);
-            prob.time = toc;
-        end
-        
-        % need to test...
-        function convRelax(prob,slope)
+        % need to test examples...
+        function calcBeamsConvex(prob,print)
             % CONVRELAX Approach inspired by Fu paper.
-            if nargin == 1
-                slope = 1;
-            end
             tic;
-            cvx_begin quiet
-                variable xRelax(prob.nBeamlets)
-                minimize(sum_square(prob.Au*xRelax - prob.du))
-                subject to
-                    prob.lb <= xRelax;
-                    for ii = 1:prob.nStructs
-                        At = prob.structs{ii}.A;
-                        for jj = 1:prob.structs{ii}.nTerms
-                            if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-                                d = prob.structs{ii}.terms{jj}.d;
-                                k = prob.structs{ii}.terms{jj}.k;
-                                s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
-                                sum(pos(1 + (-1)^s*slope*(At*xRelax - d))) <= k;
-                            end
+            if print
+                cvx_begin
+            else
+                cvx_begin quiet
+            end
+            variables xRelax(prob.nBeamlets) a
+            minimize(sum_square(prob.Au*xRelax - prob.du))
+            subject to
+                prob.lb <= xRelax;
+                for ii = 1:prob.nStructs
+                    At = prob.structs{ii}.A;
+                    for jj = 1:prob.structs{ii}.nTerms
+                        if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                            d = prob.structs{ii}.terms{jj}.d;
+                            k = prob.structs{ii}.terms{jj}.k;
+                            s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
+                            sum(pos(a + (-1)^s*(At*xRelax - d))) <= a*k;
                         end
                     end
+                end
             cvx_end
-            prob.constGen(xRelax);
+            if print
+                fprintf('alpha = %.2f',a);
+            end
+            prob.x = xRelax;
             prob.time = toc;
         end
         
-        % need to test...
-        function iterDose(prob,tol,maxIter)
+        % need to test examples...
+        function calcBeamsIter(prob,print,tol)
             % ITERDOSE Approach inspired by Llacer paper.
-            if nargin < 2
+            if nargin == 1
+                print = true;
+            end
+            if nargin == 2
                 tol = 5e-3;
             end
-            if nargin < 3
-                maxIter = 1000;
-            end
+            
+            % Fluence map optimization
             tic;
             prob.x = prob.x0;
             step = size(prob.Au,1) - prob.nBeamlets;
-            for ii = 1:maxIter
+            for ii = 1:prob.maxIter
                 x_old = prob.x;
                 grad = prob.getIterGrad(prob.x);
                 prob.x = prob.x - step*grad;
                 prob.x(prob.x < 0) = 0;
-                if norm(x_old - prob.x)/prob.nBeamlets < tol
+                xDiff = norm(x_old - prob.x)/prob.nBeamlets;
+                
+                % Calculate objective
+                prob.nIter = ii;
+                if print
+                    obj = prob.getIterObj(prob.x);        
+                    fprintf('iter: %d, obj: %7.4e, xDiff: %7.4e\n',...
+                        ii,obj,xDiff);
+                end
+                
+                % Check convergence
+                if xDiff < tol
                     break
                 end
             end
             prob.time = toc;
         end
         
-        % need to test...
-        function slackDose(prob,print)
-            % SLACKDOSE Approach inspired by Zhang paper.
+        % need to test examples...
+        function calcBeamsSlack(prob,print)
+            % CALCBEAMSLACK Approach inspired by Zhang paper.
             if nargin == 1
                 print = true;
             end
+            if isempty(prob.Au)
+                [prob.As,prob.Hs,prob.lbs,prob.ubs] = prob.getA('slack');
+            end
             
+            % Fluence map optimization
             tic;
             prob.initU();
             y = zeros(size(prob.As,2),1);
             for kk = 1:prob.maxIter
                 % Update x and u vectors
                 y = prob.projX('slack',y);
-                d = prob.getd('slack');
-                obj = norm(prob.As*y - d)^2/2;
                 prob.x = y(1:prob.nBeamlets);
                 uDiffSum = 0;
                 for ii = 1:prob.nStructs
@@ -251,18 +255,46 @@ classdef FluenceMapOpt < handle
                         end
                     end
                 end
+                
+                % Calculate objective
+                prob.nIter = kk;
                 if print
-                    fprintf('iter: %d, obj: %7.4e, uDiff: %7.4e\n',kk,obj,uDiffSum);
+                    d = prob.getd('slack');
+                    obj = norm(prob.As*y - d)^2/2;
+                    fprintf('iter: %d, obj: %7.4e, uDiff: %7.4e\n',...
+                        kk,obj,uDiffSum);
                 end
 
                 % Check convergence
                 if uDiffSum <= prob.tol
                     break
                 end
-                y = prob.projX('slack',y);
-                prob.x = y(1:prob.nBeamlets);
-                prob.time = toc;
             end
+            y = prob.projX('slack',y);
+            prob.x = y(1:prob.nBeamlets);
+            prob.time = toc;
+        end
+        
+        % need to test examples...
+        function calcBeamsPolish(prob,x,print)
+            % CALCBEAMSPOLISH Approach inspired by Saberian paper.
+            %
+            %   Display options: 
+            %       * 'off', 'none', 'final', 'iter'
+            %       * 'iter-detailed', 'final-detailed'
+            if nargin == 2
+                print = 'iter';
+            else
+                if ~print
+                    print = 'off';
+                end
+            end
+            tic;
+            f = -prob.Au'*prob.du;
+            [Ac,dc] = prob.getConstraints(x);
+            options = optimoptions(@quadprog,'Display',print);
+            prob.x = quadprog(prob.Hu,f,Ac,dc,[],[],prob.lb,prob.ub,[],options);
+            prob.time = toc;
         end
         
         function plotObj(prob)
@@ -315,7 +347,7 @@ classdef FluenceMapOpt < handle
             end
                 
             % Annotations
-            legend(legendHandles,legendNames)
+            legend(legendHandles,legendNames,'Location','northeastoutside')
             xlabel('Dose (Gy)')
             ylabel('Relative Volume (%)')
             ax = gca;
@@ -444,7 +476,47 @@ classdef FluenceMapOpt < handle
                 'Callback',{@prob.updateZ,hax,dose,threshold}); 
         end
         
-        % need to test...
+        function plotDosePaper(prob)
+            % PLOTDOSEPAPER Plot dose at z = 50.
+            figure()
+            idx1 = 40:126;
+            idx2 = 23:152;
+            
+            % Get CT slice
+            ct = dicomread('Prostate_Dicom/CT.2.16.840.1.113662.2.12.0.3173.1271873797.276');
+            ct = double(imresize(ct,[184,184]));
+            ct50 = ct(idx1,idx2);
+            ctShift = ct50 - min(ct50(:));
+            ctShiftScale = ctShift/max(ctShift(:));
+            CT50 = repmat(ctShiftScale,[1 1 3]);
+            
+            % Get Dose
+            Dose = reshape(prob.D*prob.x,184,184,90);
+            Dose50 = Dose(idx1,idx2,50);
+            
+            % Plot CT
+            body50 = prob.mask{end}(idx1,idx2,50);
+            imagesc(CT50), hold on
+            
+            % Plot dose
+            imagesc(Dose50,'AlphaData',0.3*(body50~=0))
+            contour(Dose50,0:10:100,'LineWidth',2);
+            
+            % Plot organ contours
+            for i = 1:length(prob.mask)-1
+               contour(prob.mask{i}(idx1,idx2,50),1,'k','LineWidth',2); 
+            end
+            
+            % Annotations
+            caxis([min(Dose50(:)) max(Dose50(:))]);
+            axis equal
+            axis off
+            
+            % Colorbar
+            colorbar('southoutside','Ticks',0:20:100,'TickLabels',{},'LineWidth',2)
+        end
+        
+        % need to test?
         function compareVoxelDose(prob,ii,xMat,plotTitles)
             % COMPAREVOXELDOSE Plot dose per voxel for multiple solutions.
             nX = size(xMat,2);
@@ -483,7 +555,7 @@ classdef FluenceMapOpt < handle
             end
         end
          
-        % need to test...
+        % need to test?
         function printStats(prob,x)
             % PRINTSTATS Print solution statistics with Markdown formatting.
             if nargin == 1
@@ -537,7 +609,6 @@ classdef FluenceMapOpt < handle
             end
         end 
         
-        % test slack matrix...
         function [A,H,lb,ub] = getA(prob,type)
             % GETA Get stacked beamlet-to-voxel matrix, Hessian, and 
             %   beamlet lower and upper bounds.
@@ -593,7 +664,6 @@ classdef FluenceMapOpt < handle
             ub = inf(size(A,2),1);
         end
         
-        % test slack d...
         function d = getd(prob,type)
             % GETD Get stacked dose vector.
             %
@@ -620,8 +690,8 @@ classdef FluenceMapOpt < handle
                                 termU = prob.structs{ii}.terms{jj}.u;
                                 temp = sqrt(weight/nVoxels)*termU;
                             else
-                                w = prob.structs{ii}.terms{jj}.w;
-                                temp = temp + sqrt(weight/nVoxels)*w;
+                                termW = prob.structs{ii}.terms{jj}.w;
+                                temp = temp + sqrt(weight/nVoxels)*termW;
                             end
                         end
                         d = [d; temp];
@@ -635,7 +705,6 @@ classdef FluenceMapOpt < handle
             end
         end
         
-        % test slack output...
         function x = projX(prob,type,y0)
             % PROJX Solve non-negative least-squares problem for beamlets.
             %
@@ -698,7 +767,7 @@ classdef FluenceMapOpt < handle
                         w = FluenceMapOpt.projW((-1)^s*res,k);
                         prob.structs{ii}.terms{jj}.w = w;
                         
-                        % Zhang paper initialization
+                        % DVC paper initialization
                         % d = prob.structs{ii}.terms{jj}.d;
                         % prob.structs{ii}.terms{jj}.w = zeros(size(d));
                         
@@ -720,7 +789,7 @@ classdef FluenceMapOpt < handle
                         % u = FluenceMapOpt.projU(0*initDose,initDose,ii,jj);
                         % prob.structs{ii}.terms{jj}.u = u;
                         
-                        % Zhang paper initialization
+                        % DVC initialization
                         d = prob.structs{ii}.terms{jj}.d;
                         prob.structs{ii}.terms{jj}.u = d;
                         
@@ -776,6 +845,45 @@ classdef FluenceMapOpt < handle
                     fprintf('\n');
                 end
             end 
+        end
+        
+        function obj = getObj(prob,type)
+            % GETOBJ Get objective value.
+            if nargin == 1
+                type = 'full';
+            end
+            if strcmp(type,'full')
+                d = prob.getd('full');
+                obj = 1/2*norm(prob.A*prob.x - d)^2;
+            elseif strcmp(type,'unif')
+                obj = 1/2*norm(prob.Au*prob.x - prob.du)^2;
+            elseif strcmp(type,'dvc')
+                obj = 0;
+                for ii = 1:prob.nStructs
+                    nVoxels = prob.structs{ii}.nVoxels;
+                    for jj = 1:prob.structs{ii}.nTerms
+                        if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                            weight = prob.structs{ii}.terms{jj}.weight;
+                            objTerm = prob.getOarDiff(ii,jj);
+                            obj = obj + weight*objTerm^2/(2*nVoxels);
+                        end
+                    end
+                end
+            else
+                disp('Invalid objective type.');
+                obj = -1;
+            end
+        end
+        
+        function diff = getOarDiff(prob,ii,jj,type)
+            % GETOARDIFF Get OAR term ||w - (Ax - d)||_2.
+            if nargin == 3
+                type = 2;
+            end
+            Ax = prob.structs{ii}.A*prob.x;
+            w = prob.structs{ii}.terms{jj}.w;
+            d = prob.structs{ii}.terms{jj}.d;
+            diff = norm(w - (Ax - d),type);
         end
         
         % need to test...
@@ -842,7 +950,7 @@ classdef FluenceMapOpt < handle
         
         % need to test...
         function grad = getIterGrad(prob,x)
-            % ITEROBJ Get gradient for iterative method.
+            % GETITERGRAD Get gradient for iterative method.
             grad = prob.Au'*(prob.Au*x - prob.du);
             for ii = 1:prob.nStructs
                 At = prob.structs{ii}.A;
@@ -854,6 +962,25 @@ classdef FluenceMapOpt < handle
                         res = (At*x - dt).*(At*x > dt);
                         termGrad = weight/nVoxels*At'*res;
                         grad = grad + termGrad;
+                    end
+                end
+            end
+        end
+        
+        % need to test
+        function obj = getIterObj(prob,x)
+            % GETIETEROBJ Get objective for iterative method.
+            obj = 1/2*norm(prob.Au*x - prob.du)^2;
+            for ii = 1:prob.nStructs
+                At = prob.structs{ii}.A;
+                nVoxels = prob.structs{ii}.nVoxels;
+                for jj = 1:prob.structs{ii}.nTerms
+                    if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                        dt = prob.getIterD(x,ii,jj);
+                        weight = prob.structs{ii}.terms{jj}.weight;
+                        res = (At*x - dt).*(At*x > dt);
+                        termObj = weight/(2*nVoxels)*norm(res)^2;
+                        obj = obj + termObj;
                     end
                 end
             end
@@ -935,9 +1062,8 @@ classdef FluenceMapOpt < handle
             hold off
         end
         
-        % need to test...
         function p = getPercent(prob,ii,jj,x)
-            % GETPERCENT Get percent of voxels violating dose-volume constraint;
+            % GETPERCENT Get % of voxels violating dose-volume constraint.
             if nargin == 3
                 x = prob.x;
             end
@@ -951,10 +1077,9 @@ classdef FluenceMapOpt < handle
             end
         end
         
-        % need to test...
         function area = getArea(prob,ii,x)
             % GETAREA Get area under dose-volume histogram curve.
-            if nargin == 3
+            if nargin < 3
                 x = prob.x;
             end
             dose = prob.structs{ii}.A*x;
@@ -1063,7 +1188,6 @@ classdef FluenceMapOpt < handle
             end
         end
         
-        % need to test...
         function u = projU(uPrev,u,dose,nVoxels)
             % PROJU Project u onto set D_v^k for slack model. 
             %
@@ -1094,8 +1218,7 @@ classdef FluenceMapOpt < handle
             nY = max(yIdx);
             idx = sub2ind([nX,nY],xIdx,yIdx);
         end
-        
-        % need to test...
+
         function doseP = getPercentile(dose,p)
             % GETPERCENTILE Get dose at pth percentile.
             idx = floor((1-p)*length(dose));
@@ -1249,47 +1372,6 @@ classdef FluenceMapOpt < handle
 %             % Colorbar
 %             e = colorbar('southoutside','Ticks',0:1000:3000,'TickLabels',{},'LineWidth',2);
 %             e.Position = [0.1    0.077    0.65    0.02700];
-%         end
-%         
-%         % Plot dose at slice 50 (fig 1,5,10,14).
-%         function plotDosePaper(f)
-%             
-%             figure()
-%             idx1 = 40:126;
-%             idx2 = 23:152;
-%             
-%             % Get CT slice
-%             ct = dicomread('Prostate_Dicom/CT.2.16.840.1.113662.2.12.0.3173.1271873797.276');
-%             ct = double(imresize(ct,[184,184]));
-%             ct50 = ct(idx1,idx2);
-%             ctShift = ct50 - min(ct50(:));
-%             ctShiftScale = ctShift/max(ctShift(:));
-%             CT50 = repmat(ctShiftScale,[1 1 3]);
-%             
-%             % Get Dose
-%             Dose = reshape(f.D*f.x,184,184,90);
-%             Dose50 = Dose(idx1,idx2,50);
-%             
-%             % Plot CT
-%             body50 = f.mask{end}(idx1,idx2,50);
-%             imagesc(CT50), hold on
-%             
-%             % Plot dose
-%             imagesc(Dose50,'AlphaData',0.3*(body50~=0))
-%             contour(Dose50,0:10:100,'LineWidth',2);
-%             
-%             % Plot organ contours
-%             for i = 1:length(f.mask)-1
-%                contour(f.mask{i}(idx1,idx2,50),1,'k','LineWidth',2); 
-%             end
-%             
-%             % Annotations
-%             caxis([min(Dose50(:)) max(Dose50(:))]);
-%             axis equal
-%             axis off
-%             
-%             % Colorbar
-%             colorbar('southoutside','Ticks',0:20:100,'TickLabels',{},'LineWidth',2)
 %         end
         end
     end

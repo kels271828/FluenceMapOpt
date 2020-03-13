@@ -86,6 +86,9 @@ function testSizeA(testCase)
     [A,~,~,~] = prob.getA('unif');
     assert(size(A,1) == 7756,'Incorrect rows')
     assert(size(A,2) == prob.nBeamlets,'Incorrect columns')
+    [A,~,~,~] = prob.getA('slack');
+    assert(size(A,1) == 17882,'Incorrect rows')
+    assert(size(A,2) == 11112,'Incorrect columns')
 end
 
 function testGetD(testCase)
