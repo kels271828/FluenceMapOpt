@@ -29,10 +29,10 @@ maxIterVals = [1 3 32];
     
 % Relaxed problems (initial, middle, last iterate)
 [A,~,~,~] = prob.getA('full');
-for i = 1:size(maxIterVals,2)
+for ii = 1:size(maxIterVals,2)
 
     % Calculate w values and plot objective function contours
-    prob.maxIter = maxIterVals(i);
+    prob.maxIter = maxIterVals(ii);
     prob.calcBeams();
 
     % Plot region

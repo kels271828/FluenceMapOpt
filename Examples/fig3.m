@@ -11,24 +11,19 @@ cd(currentFolder);
 
 %% Set up problem
 
-% PTV - tumor voxel 1675228
-tumor.name = 'tumorEx';
-tt1.type = 'unif'; tt1.dose = 81; tt1.weight = 1;
-tumor.terms = {tt1};
+% PTV - prostate voxel 1675228
+prostate = struct('name','tumorEx');
+prostate.terms = {struct('type','unif','dose',81,'weight',1)};
 
 % OAR - rectum voxels 1674687 and 1675607
-rectum.name = 'rectumEx';
-rt1.type = 'udvc'; rt1.dose = 20; rt1.percent = 50; rt1.weight = 10;
-rectum.terms = {rt1};
+rectum = struct('name','rectumEx');
+rectum.terms = {struct('type','udvc','dose',20,'percent',50,'weight',10)};
 
 % Create problem instance
-pars.structs = {tumor,rectum};
-pars.angles = [17,353];
-pars.lambda = 5e-6;
-pars.maxIter = 32;
-pars.xInit = zeros(2,1);
-f = FluenceMapOpt(pars);
+structs = {prostate,rectum};
+prob = FluenceMapOpt(structs,'angles',[17 353],'lambda',5e-6,...
+    'maxIter',32,'x0',zeros(2,1));
 
 %% Plot objective function contours for relaxed problem
 
-plotContourW(f,[-30 20],10);
+plotContourW(prob,[-30 20],10);
