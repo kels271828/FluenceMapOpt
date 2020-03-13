@@ -7,7 +7,7 @@
 % voxel 1675228, with a 20 Gy / 50% dose-volume constraint on rectum voxels
 % 1674687 and 1675607.
 
-% NOTE: Need to change SetAccess of FluenceMap Opt properties D and mask.
+% NOTE: Need to change SetAccess of FluenceMapOpt properties D and mask.
 
 clear all; close all; clc;
 
@@ -48,11 +48,11 @@ voxels = [1675228; 1674687; 1675607];
 %% Set up problem
 
 % PTV - prostate
-prostate = struct('name','PTV_68');
+prostate.name = 'PTV_68';
 prostate.terms = {struct('type','unif','dose',80,'weight',1)};
 
 % OAR - rectum
-rectum = struct('name','Rectum');
+rectum.name = 'Rectum';
 rectum.terms = {struct('type','udvc','dose',20,'percent',50,'weight',1)};
 
 % Creat problem instance

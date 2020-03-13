@@ -1,6 +1,8 @@
 % Figure 3: Objective function contours of the nonconvex relaxation applied
 % to the example in the introduction. 
 
+% NOTE: Need to change SetAccess of FluenceMapOpt property structs.
+
 clear all; close all; clc;
 
 % Add data and functions to path
@@ -12,11 +14,11 @@ cd(currentFolder);
 %% Set up problem
 
 % PTV - prostate voxel 1675228
-prostate = struct('name','tumorEx');
+prostate.name = 'tumorEx';
 prostate.terms = {struct('type','unif','dose',81,'weight',1)};
 
 % OAR - rectum voxels 1674687 and 1675607
-rectum = struct('name','rectumEx');
+rectum.name = 'rectumEx';
 rectum.terms = {struct('type','udvc','dose',20,'percent',50,'weight',10)};
 
 % Create problem instance

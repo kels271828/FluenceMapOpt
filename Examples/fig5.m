@@ -1,5 +1,7 @@
 % Figure 5: Organ contours for CORT dataset
 
+% NOTE: Need to change GetAccess of FluenceMapOpt property mask.
+
 clear all; close all; clc;
 
 % Add data and functions to path
@@ -12,38 +14,31 @@ cd(currentFolder);
 
 % prostate
 prostate.name = 'PTV_68';
-tt1.type = 'unif'; tt1.dose = 81; tt1.weight = 1; 
-prostate.terms = {tt1};
+prostate.terms = {struct('type','unif','dose',81,'weight',1)};
 
 % lymph nodes
 nodes.name = 'PTV_56';
-nt1.type = 'unif'; nt1.dose = 60; nt1.weight = 1;
-nodes.terms = {nt1};
+nodes.terms = {struct('type','unif','dose',60,'weight',1)};
 
 % rectum
 rectum.name = 'Rectum';
-rt1.type = 'udvc'; rt1.dose = 50; rt1.percent = 50; rt1.weight = 1;
-rectum.terms = {rt1};
+rectum.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
 
 % bladder
 bladder.name = 'Bladder';
-bt1.type = 'udvc'; bt1.dose = 30; bt1.percent = 30; bt1.weight = 1;
-bladder.terms = {bt1};
+bladder.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
 
 % left femoral head
 lfem.name = 'Lt_femoral_head';
-lt1.type = 'udvc'; lt1.dose = 10; lt1.percent = 10; lt1.weight = 1;
-lfem.terms = {lt1};
+lfem.terms = {struct('type','udvc','dose',60,'percent',0,'weight',1)};
 
 % right femoral head
 rfem.name = 'Rt_femoral_head';
-qt1.type = 'udvc'; qt1.dose = 10; qt1.percent = 10; qt1.weight = 1;
-rfem.terms = {qt1};
+rfem.terms = {struct('type','udvc','dose',60,'percent',0,'weight',1)};
 
 % Create problem instance
-pars.structs = {prostate,nodes,rectum,bladder,lfem,rfem};
-f = FluenceMapOpt(pars);
-f.x = zeros(size(f.x));
+structs = {prostate,nodes,rectum,bladder,lfem,rfem};
+prob = FluenceMapOpt(structs,'x0',zeros(986,1));
 
 %% Plot structures
 
@@ -62,7 +57,7 @@ ctShiftScale = ctShift/max(ctShift(:));
 CT50 = repmat(ctShiftScale,[1 1 3]);
 
 % Plot CT
-body50 = f.mask{end}(idx1,idx2,50);
+body50 = prob.mask{end}(idx1,idx2,50);
 imagesc(CT50), hold on
 
 % Indexes
@@ -70,8 +65,8 @@ organs = [3 5 6 4 2 1];
 colors = [2 7 7 3 4 1];
 
 % Plot organ contours
-for i = 1:length(f.mask)-1
-   contour(f.mask{organs(i)}(idx1,idx2,50),1,'Color',myLines(colors(i),:),'LineWidth',2); 
+for i = 1:length(prob.mask)-1
+   contour(prob.mask{organs(i)}(idx1,idx2,50),1,'Color',myLines(colors(i),:),'LineWidth',2); 
 end
 
 % Annotations
