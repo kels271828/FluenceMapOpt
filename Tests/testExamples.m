@@ -1,13 +1,15 @@
 function tests = testExamples
-    addpath(genpath('PROSTATE'));
-    addpath(genpath('minConf'));
+    currentFolder = pwd;
+    cd ..
+    addpath(genpath(pwd));
+    cd(currentFolder);
     tests = functiontests(localfunctions);
 end
 
 function testExample1(~)
-    unif = struct('name','PTV_68');
+    unif.name = 'PTV_68';
     unif.terms = {struct('type','unif','dose',81,'weight',1)};
-    udvc = struct('name','Rectum');
+    udvc.name = 'Rectum';
     udvc.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
     prob = FluenceMapOpt({unif,udvc});
     percentOver = sum(prob.structs{2}.A*prob.x0 > 50)/prob.structs{2}.nVoxels;
@@ -19,9 +21,9 @@ function testExample1(~)
 end
 
 function testExample2(~)
-    unif = struct('name','PTV_68');
+    unif.name = 'PTV_68';
     unif.terms = {struct('type','unif','dose',81,'weight',1)};
-    udvc = struct('name','Rectum');
+    udvc.name = 'Rectum';
     udvc.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
     prob = FluenceMapOpt({unif,udvc});
     percentOver = sum(prob.structs{2}.A*prob.x0 > 30)/prob.structs{2}.nVoxels;
@@ -33,9 +35,9 @@ function testExample2(~)
 end
 
 function testExample3(~)
-    unif = struct('name','PTV_68');
+    unif.name = 'PTV_68';
     unif.terms = {struct('type','unif','dose',81,'weight',1)};
-    udvc = struct('name','Rectum');
+    udvc.name = 'Rectum';
     udvc.terms = {struct('type','udvc','dose',10,'percent',10,'weight',1)};
     prob = FluenceMapOpt({unif,udvc});
     percentOver = sum(prob.structs{2}.A*prob.x0 > 10)/prob.structs{2}.nVoxels;
@@ -47,11 +49,11 @@ function testExample3(~)
 end
 
 function testExample4(~)
-    unif = struct('name','PTV_68');
+    unif.name = 'PTV_68';
     unif.terms = {struct('type','unif','dose',81,'weight',1),...
         struct('type','ldvc','dose',81','percent',5,'weight',1),...
         struct('type','udvc','dose',85,'percent',0,'weight',1)};
-    udvc = struct('name','Rectum');
+    udvc.name = 'Rectum';
     udvc.terms = {struct('type','udvc','dose',20,'percent',60,'weight',1),...
         struct('type','udvc','dose',50,'percent',50,'weight',1),...
         struct('type','udvc','dose',60,'percent',20,'weight',1)};
@@ -85,13 +87,13 @@ function testExample4(~)
 end
 
 function testExample5(~)
-    unif1 = struct('name','PTV_68');
+    unif1.name = 'PTV_68';
     unif1.terms = {struct('type','unif','dose',81,'weight',1)};
-    unif2 = struct('name','PTV_56');
+    unif2.name = 'PTV_56';
     unif2.terms = {struct('type','unif','dose',60,'weight',1)};
-    udvc1 = struct('name','Rectum');
+    udvc1.name = 'Rectum';
     udvc1.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
-    udvc2 = struct('name','Bladder');
+    udvc2.name = 'Bladder';
     udvc2.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
     
     % Check initialization

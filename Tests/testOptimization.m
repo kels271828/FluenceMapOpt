@@ -1,6 +1,8 @@
 function tests = testOptimization
-    addpath(genpath('PROSTATE'));
-    addpath(genpath('minConf'));
+    currentFolder = pwd;
+    cd ..
+    addpath(genpath(pwd));
+    cd(currentFolder);
     tests = functiontests(localfunctions);
 end
 
@@ -73,4 +75,3 @@ function testUpdateX(testCase)
     assert(abs(percentOver - 0.4303) < 1e-4,'Incorrect initialization')
 end
 
-% test update w?

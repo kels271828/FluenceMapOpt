@@ -1,6 +1,8 @@
 function tests = testOther
-    addpath(genpath('PROSTATE'));
-    addpath(genpath('minConf'));
+    currentFolder = pwd;
+    cd ..
+    addpath(genpath(pwd));
+    cd(currentFolder);
     tests = functiontests(localfunctions);
 end
 

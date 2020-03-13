@@ -1,15 +1,17 @@
 function tests = testConstructor
-    addpath(genpath('PROSTATE'));
-    addpath(genpath('minConf'));
+    currentFolder = pwd;
+    cd ..
+    addpath(genpath(pwd));
+    cd(currentFolder);
     tests = functiontests(localfunctions);
 end
 
 function setupOnce(testCase)
-    unif = struct('name','PTV_68');
+    unif.name = 'PTV_68';
     unif.terms = {struct('type','unif','dose',80,'weight',1)};
-    ldvc = struct('name','PTV_56');
+    ldvc.name = 'PTV_56';
     ldvc.terms = {struct('type','ldvc','dose',60,'percent',15,'weight',1)};
-    udvc = struct('name','Rectum');
+    udvc.name = 'Rectum';
     udvc.terms = {struct('type','udvc','dose',30,'percent',15,'weight',1)};
     testCase.TestData.structs = {unif,ldvc,udvc};
     testCase.TestData.prob = FluenceMapOpt(testCase.TestData.structs);

@@ -160,41 +160,62 @@ classdef FluenceMapOpt < handle
             prob.time = toc;
         end
         
-        % need to test examples...
         function calcBeamsConvex(prob,print)
             % CONVRELAX Approach inspired by Fu paper.
+            if nargin == 1
+                print = true;
+            end
+            
+            % Get number of dose-volume constrained voxels
+            numA = 0;
+            for ii = 1:prob.nStructs
+                nVoxels = prob.structs{ii}.nVoxels;
+                for jj = 1:prob.structs{ii}.nTerms
+                    if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                        numA = numA + nVoxels;
+                    end
+                end
+            end
+           
+            % Fluence map optimization
             tic;
             if print
                 cvx_begin
             else
                 cvx_begin quiet
             end
-            variables xRelax(prob.nBeamlets) a
+            variables xRelax(prob.nBeamlets) a(numA)
             minimize(sum_square(prob.Au*xRelax - prob.du))
             subject to
                 prob.lb <= xRelax;
+                zeros(numA,1) <= a;
+                countA = 1;
                 for ii = 1:prob.nStructs
                     At = prob.structs{ii}.A;
+                    nVoxels = prob.structs{ii}.nVoxels;
                     for jj = 1:prob.structs{ii}.nTerms
                         if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                            idx1 = countA;
+                            idx2 = countA + nVoxels - 1;
                             d = prob.structs{ii}.terms{jj}.d;
                             k = prob.structs{ii}.terms{jj}.k;
                             s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
-                            sum(pos(a + (-1)^s*(At*xRelax - d))) <= a*k;
+                            res = (At*xRelax - d);
+                            termSum = sum(pos(a(idx1:idx2) + (-1)^s*res));
+                            termSum <= a(idx1:idx2)*k;
+                            countA = idx2 + 1;
                         end
                     end
                 end
             cvx_end
-            if print
-                fprintf('alpha = %.2f',a);
-            end
             prob.x = xRelax;
             prob.time = toc;
         end
         
-        % need to test examples...
         function calcBeamsIter(prob,print,tol)
             % ITERDOSE Approach inspired by Llacer paper.
+            %
+            %   NOTE: Lower dose-volume constraints not implemented.
             if nargin == 1
                 print = true;
             end
@@ -229,7 +250,6 @@ classdef FluenceMapOpt < handle
             prob.time = toc;
         end
         
-        % need to test examples...
         function calcBeamsSlack(prob,print)
             % CALCBEAMSLACK Approach inspired by Zhang paper.
             if nargin == 1
@@ -259,8 +279,8 @@ classdef FluenceMapOpt < handle
                 % Calculate objective
                 prob.nIter = kk;
                 if print
-                    d = prob.getd('slack');
-                    obj = norm(prob.As*y - d)^2/2;
+                    ds = prob.getd('slack');
+                    obj = norm(prob.As*y - ds)^2/2;
                     fprintf('iter: %d, obj: %7.4e, uDiff: %7.4e\n',...
                         kk,obj,uDiffSum);
                 end
@@ -275,7 +295,6 @@ classdef FluenceMapOpt < handle
             prob.time = toc;
         end
         
-        % need to test examples...
         function calcBeamsPolish(prob,x,print)
             % CALCBEAMSPOLISH Approach inspired by Saberian paper.
             %
@@ -327,23 +346,18 @@ classdef FluenceMapOpt < handle
             legendHandles = [];
             figure(), hold on
             
+            % Plot dose-volume histograms
             for ii = 1:prob.nStructs
-               plot(doses,dvhInit(ii,:),'--','Color',myLines(ii,:),...
-                   'LineWidth',2)
-               for jj = 1:prob.structs{ii}.nTerms
-                   % Plot targets/constraints
-                   prob.plotConstraints(ii,jj);
-                   
-                   % Plot dvh curves
-                   if jj == 1
-                       dvhHandle = plot(doses,dvhFinal(ii,:),...
-                           'Color',myLines(ii,:),'LineWidth',2);
-                       legendHandles = [legendHandles dvhHandle];
-                   else
-                       plot(doses,dvhFinal(ii,:),'Color',myLines(ii,:),...
-                           'LineWidth',2)
-                   end 
-               end
+                for jj = 1:prob.structs{ii}.nTerms
+                    % Plot targets/constraints
+                    prob.plotConstraints(ii,jj);
+                end
+                % Plot dvh curves
+                plot(doses,dvhInit(ii,:),'--','Color',myLines(ii,:),...
+                    'LineWidth',2)
+                dvhHandle = plot(doses,dvhFinal(ii,:),...
+                    'Color',myLines(ii,:),'LineWidth',2);
+                legendHandles = [legendHandles dvhHandle];
             end
                 
             % Annotations
@@ -368,28 +382,15 @@ classdef FluenceMapOpt < handle
             % Plot dose-volume histograms
             for ii = 1:prob.nStructs
                 figure(), hold on
+                % Plot targets/constraints
                 for jj = 1:length(prob.structs{ii}.terms)
-                    termUnif = strcmp(prob.structs{ii}.terms{jj}.type,'unif');
-                    termMax = ~termUnif && prob.structs{ii}.terms{jj}.percent == 0;
-                    if termMax
-                        plot(prob.structs{ii}.terms{jj}.dose,0,'p',...
-                            'MarkerFaceColor',[0.9290 0.6940 0.1250],...
-                            'MarkerEdgeColor',[0.9290 0.6940 0.1250],...
-                            'MarkerSize',10);
-                    else
-                        if termUnif
-                            percent = [0 100 100];
-                        elseif ~termMax
-                            percent = zeros(1,3);
-                            percent(2:3) = prob.structs{ii}.terms{jj}.percent;
-                        end
-                        dose = zeros(1,3);
-                        dose(1:2) = prob.structs{ii}.terms{jj}.dose;
-                        plot(dose,percent,':','Color',[0.4 0.4 0.4],'LineWidth',3)
-                        plot(doses,dvhInit(ii,:),'--','LineWidth',3,'Color',myLines(ii,:))
-                        plot(doses,dvhFinal(ii,:),'LineWidth',3,'Color',myLines(ii,:))
-                    end
+                    prob.plotConstraints(ii,jj);
                 end
+                % Plot dvh curves
+                plot(doses,dvhInit(ii,:),'--','Color',myLines(ii,:),...
+                    'LineWidth',2)
+                plot(doses,dvhFinal(ii,:),'Color',myLines(ii,:),...
+                        'LineWidth',2)
                 
                 % Annotations
                 ax = gca;
@@ -426,22 +427,22 @@ classdef FluenceMapOpt < handle
             figure(), hold on
             
             for ii = 1:prob.nStructs
-               for jj = 1:prob.structs{ii}.nTerms
-                   % Plot targets/constraints
-                   prob.plotConstraints(ii,jj);
+                for jj = 1:prob.structs{ii}.nTerms
+                    % Plot targets/constraints
+                    prob.plotConstraints(ii,jj);
                    
-                   % Plot dvh curves
-                   for kk = 1:nX
-                       if ii == 1 && jj == 1
-                           dvhHandle = plot(doses,dvhMat(ii,:,kk),...
-                               'Color',myLines(kk,:));
-                           legendHandles = [legendHandles dvhHandle];
-                       else
-                           plot(doses,dvhMat(ii,:,kk),...
-                               'Color',myLines(kk,:))
-                       end 
-                   end
-               end
+                    % Plot dvh curves
+                    for kk = 1:nX
+                        if ii == 1 && jj == 1
+                            dvhHandle = plot(doses,dvhMat(ii,:,kk),...
+                                'Color',myLines(kk,:),'LineWidth',2);
+                            legendHandles = [legendHandles dvhHandle];
+                        else
+                            plot(doses,dvhMat(ii,:,kk),...
+                                'Color',myLines(kk,:),'LineWidth',2)
+                        end 
+                    end
+                end
             end
                 
             % Annotations
@@ -564,47 +565,8 @@ classdef FluenceMapOpt < handle
             colorbar('southoutside','Ticks',0:20:100,'TickLabels',{},...
                 'LineWidth',2)
         end
-        
-        % need to test?
-        function compareVoxelDose(prob,ii,xMat,plotTitles)
-            % COMPAREVOXELDOSE Plot dose per voxel for multiple solutions.
-            nX = size(xMat,2);
-            if nargin == 3
-                plotTitles = cell(1,nX);
-                for kk = 1:nX
-                    plotTitles{kk} = sprintf('x%d',kk);
-                end
-            end
-            
-            % Plot dose per voxel
-            figure()
-            minDose = 1e6;
-            maxDose = -1e6;
-            for kk = 1:nX
-                dose = prob.structs{ii}.A*xMat(:,kk);
-                minDose = min(minDose,min(dose));
-                maxDose = max(maxDose,max(dose));
-                subplot(1,nX,kk)
-                plot(dose,'.'), hold on
-                for jj = 1:prob.structs{ii}.nTerms
-                    constraint = prob.structs{ii}.terms{jj}.dose;
-                    plot([0 length(dose)],[constraint constraint],'LineWidth',2)
-                end
-                xlabel('Voxel Index')
-                title(plotTitles{kk})
-                if kk == 1
-                    ylabel('Dose (Gy)')
-                end
-            end
-            
-            % Resize axes
-            for kk = 1:nX
-                subplot(1,nX,kk)
-                axis([1 length(dose) minDose maxDose])
-            end
-        end
          
-        % need to test?
+        % change format
         function printStats(prob,x)
             % PRINTSTATS Print solution statistics with Markdown formatting.
             if nargin == 1
@@ -823,7 +785,7 @@ classdef FluenceMapOpt < handle
                         % OAR initialization (x0 = 0)
                         % d = prob.structs{ii}.terms{jj}.d;
                         % prob.structs{ii}.terms{jj}.w = -d;
-                   end
+                    end
                 end
             end
         end
@@ -935,7 +897,6 @@ classdef FluenceMapOpt < handle
             diff = norm(w - (Ax - d),type);
         end
         
-        % need to test...
         function wDiff = updateW(prob,ii,jj)
             % UPDATEW Update proxy variable.
             
@@ -943,7 +904,9 @@ classdef FluenceMapOpt < handle
             s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
             k = prob.structs{ii}.terms{jj}.k;
             step = prob.structs{ii}.terms{jj}.step;
-            coeff = step*prob.structs{ii}.terms{jj}.weight/prob.structs{ii}.nVoxels;
+            weight = prob.structs{ii}.terms{jj}.weight;
+            nVoxels = prob.structs{ii}.nVoxels;
+            coeff = step*weight/nVoxels;
             
             % Calculate gradient step
             dose = prob.structs{ii}.A*prob.x;
@@ -957,20 +920,18 @@ classdef FluenceMapOpt < handle
             prob.structs{ii}.terms{jj}.w = wProj;
         end
         
-        % need to test...
         function uDiff = updateU(prob,ii,jj)
             % UPDATE U Update dose variables.
-            Ax = prob.structs{ii}.A*prob.x;
+            dose = prob.structs{ii}.A*prob.x;
             uPrev = prob.structs{ii}.terms{jj}.u;
             d = prob.structs{ii}.terms{jj}.d(1);
             n = prob.structs{ii}.nVoxels - prob.structs{ii}.terms{jj}.k;
-            u = FluenceMapOpt.projU(uPrev,max(uPrev,Ax),d,n);
+            uProj = FluenceMapOpt.projU(uPrev,max(uPrev,dose),d,n);
             step = prob.structs{ii}.terms{jj}.step;
-            uDiff = norm(uPrev - u)/step;
-            prob.structs{ii}.terms{jj}.u = u;
+            uDiff = norm(uPrev - uProj)/step;
+            prob.structs{ii}.terms{jj}.u = uProj;
         end
         
-        % need to test...
         function [Ac,dc] = getConstraints(prob,x)
             % GETCONSTRAINTS Get stacked dose-volume constraints.
             Ac = [];
@@ -986,18 +947,16 @@ classdef FluenceMapOpt < handle
             end 
         end
         
-        % need to test...
         function [At,dt] = getTermConstraint(prob,x,ii,jj)
             % GETTERMCONSTRAINTS Get term dose-volume constraint.
             nVoxels = prob.structs{ii}.nVoxels;
             k = prob.structs{ii}.terms{jj}.k;
             s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
-            [~,idxSort] = sort((-1)^2*prob.structs{ii}.A*x);
+            [~,idxSort] = sort((-1)^s*prob.structs{ii}.A*x);
             At = (-1)^s*prob.structs{ii}.A(idxSort(1:nVoxels-k),:);
             dt = (-1)^s*prob.structs{ii}.terms{jj}.d(idxSort(1:nVoxels-k));
         end
         
-        % need to test...
         function grad = getIterGrad(prob,x)
             % GETITERGRAD Get gradient for iterative method.
             grad = prob.Au'*(prob.Au*x - prob.du);
@@ -1016,7 +975,6 @@ classdef FluenceMapOpt < handle
             end
         end
         
-        % need to test
         function obj = getIterObj(prob,x)
             % GETIETEROBJ Get objective for iterative method.
             obj = 1/2*norm(prob.Au*x - prob.du)^2;
@@ -1035,7 +993,6 @@ classdef FluenceMapOpt < handle
             end
         end
         
-        % need to test...
         function dt = getIterD(prob,x,ii,jj)
             % GETITERD Get maximum doses for iterative method.
             n = prob.structs{ii}.nVoxels - prob.structs{ii}.terms{jj}.k;
