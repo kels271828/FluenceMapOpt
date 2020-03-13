@@ -1,4 +1,4 @@
-% Figure 6: PTV Dose-Volume Histograms
+% Figure 7: OAR Dose-Volume Histograms
 
 clear all; close all; clc;
 
@@ -11,37 +11,33 @@ cd(currentFolder);
 %% OAR doesn't meet dose-volume constraint
 
 % PTV
-tumor.name = 'PTV_68';
-tt1.type = 'unif'; tt1.dose = 81; tt1.weight = 1; 
-tumor.terms = {tt1};
+prostate.name = 'PTV_68';
+prostate.terms = {struct('type','unif','dose',81,'weight',1)};
 
 % OAR
 rectum.name = 'Rectum';
-rt1.type = 'udvc'; rt1.dose = 50; rt1.percent = 50; rt1.weight = 1;
-rectum.terms = {rt1};
+rectum.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
 
 % Calculate beamlets
-pars.structs = {tumor,rectum};
-f = FluenceMapOpt(pars);
-f.plotDVHPaper();
+structs = {prostate,rectum};
+prob1 = FluenceMapOpt(structs);
+prob1.plotDVHPaper();
 
 % Voxels over 50 Gy
-100*sum(f.structs{2}.A*f.x > 50)/f.structs{2}.nVoxels
+fprintf('Percent voxels > 50 Gy: %.2f\n',prob1.getPercent(2,1))
 
 %% OAR does meet dose-volume constraint
 
 % Adjust dose-volume constraint
-rt1.dose = 45; rt1.percent = 45;
-rectum.terms = {rt1};
-pars.structs = {tumor,rectum};
-f = FluenceMapOpt(pars);
+rectum.terms = {struct('type','udvc','dose',45,'percent',45,'weight',1)};
+structs = {prostate,rectum};
+prob2 = FluenceMapOpt(structs);
 
 % Calculate beamlets
-f.calcDose();
-f.structs{2}.terms{1}.dose = 50;
-f.structs{2}.terms{1}.percent = 50;
-f.xInit = f.x;
-f.plotDVHPaper();
+prob2.calcBeams();
+prob1.x0 = prob2.x;
+prob1.x = prob2.x;
+prob1.plotDVHPaper();
 
 % Voxels over 50 Gy
-100*sum(f.structs{2}.A*f.x > 50)/f.structs{2}.nVoxels
+fprintf('Percent voxels > 50 Gy: %.2f\n',prob1.getPercent(2,1))

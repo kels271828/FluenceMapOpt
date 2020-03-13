@@ -33,11 +33,10 @@ axis square
 %% Initialization for uniform PTV dose of 81 Gy
 
 % PTV
-tumor.name = 'PTV_68';
-tt1.type = 'unif'; tt1.dose = 81; tt1.weight = 1; 
-tumor.terms = {tt1};
+prostate.name = 'PTV_68';
+prostate.terms = {struct('type','unif','dose',81,'weight',1)};
 
 % Calculate beamlets
-pars.structs = {tumor};
-f = FluenceMapOpt(pars);
-f.plotDVHPaper();
+structs = {prostate};
+prob = FluenceMapOpt(structs);
+prob.plotDVHPaper();

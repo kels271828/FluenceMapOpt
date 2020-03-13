@@ -357,6 +357,54 @@ classdef FluenceMapOpt < handle
             axis square
         end
         
+        function plotDVHPaper(prob)
+            % PLOTDVHPAPER Plot dose-volume histogram of solution.
+            
+            % Compute curves and initialize
+            [doses,dvhInit] = prob.calcDVH(prob.x0);
+            [~,dvhFinal] = prob.calcDVH(prob.x);
+            myLines = lines;
+            
+            % Plot dose-volume histograms
+            for ii = 1:prob.nStructs
+                figure(), hold on
+                for jj = 1:length(prob.structs{ii}.terms)
+                    termUnif = strcmp(prob.structs{ii}.terms{jj}.type,'unif');
+                    termMax = ~termUnif && prob.structs{ii}.terms{jj}.percent == 0;
+                    if termMax
+                        plot(prob.structs{ii}.terms{jj}.dose,0,'p',...
+                            'MarkerFaceColor',[0.9290 0.6940 0.1250],...
+                            'MarkerEdgeColor',[0.9290 0.6940 0.1250],...
+                            'MarkerSize',10);
+                    else
+                        if termUnif
+                            percent = [0 100 100];
+                        elseif ~termMax
+                            percent = zeros(1,3);
+                            percent(2:3) = prob.structs{ii}.terms{jj}.percent;
+                        end
+                        dose = zeros(1,3);
+                        dose(1:2) = prob.structs{ii}.terms{jj}.dose;
+                        plot(dose,percent,':','Color',[0.4 0.4 0.4],'LineWidth',3)
+                        plot(doses,dvhInit(ii,:),'--','LineWidth',3,'Color',myLines(ii,:))
+                        plot(doses,dvhFinal(ii,:),'LineWidth',3,'Color',myLines(ii,:))
+                    end
+                end
+                
+                % Annotations
+                ax = gca;
+                ax.XLim = [0 doses(end)];
+                ax.YLim = [0 100];
+                ax.XTick = 0:20:100;
+                ax.YTick = 0:20:100;
+                ax.XTickLabel = {};
+                ax.YTickLabel = {};
+                ax.LineWidth = 2;
+                box on
+                axis square
+            end
+        end
+        
         function compareDVH(prob,xMat,legendNames)
             % COMPAREDVH Plot dose-volume histograms for multiple solutions.
             nX = size(xMat,2);
@@ -513,7 +561,8 @@ classdef FluenceMapOpt < handle
             axis off
             
             % Colorbar
-            colorbar('southoutside','Ticks',0:20:100,'TickLabels',{},'LineWidth',2)
+            colorbar('southoutside','Ticks',0:20:100,'TickLabels',{},...
+                'LineWidth',2)
         end
         
         % need to test?
@@ -1276,60 +1325,7 @@ classdef FluenceMapOpt < handle
 %             g.YTickLabels = {};
 %             g.LineWidth = 2;      
 %         end
-%         
-%         % Calculate and plot dose-volume histogram of solution (fig 9,11,12,13).
-%         function plotDVHPaper(f)
-%             
-%             myLines = lines;
-%             
-%             % Calculate dose-volume histograms
-%             doses = linspace(0,100,1000);
-%             dvhInit = zeros(f.nStructs,length(doses));
-%             dvhFinal = zeros(f.nStructs,length(doses));
-%             for i = 1:f.nStructs
-%                 doseInit = f.structs{i}.A*f.xInit;
-%                 doseFinal = f.structs{i}.A*f.x;
-%                 for j = 1:length(doses)
-%                     dvhInit(i,j) = 100*sum(doseInit > doses(j))/f.structs{i}.nVoxels;
-%                     dvhFinal(i,j) = 100*sum(doseFinal > doses(j))/f.structs{i}.nVoxels;
-%                 end
-%             end
-%             
-%             % Plot dose-volume histograms
-%             for i = 1:f.nStructs
-%                 figure(), hold on
-%                 for j = 1:length(f.structs{i}.terms)
-%                     if ~strcmp(f.structs{i}.terms{j}.type,'unif') && f.structs{i}.terms{j}.percent == 0
-%                         plot(f.structs{i}.terms{j}.dose,0,'p','MarkerFaceColor',[0.9290 0.6940 0.1250],...
-%                             'MarkerEdgeColor',[0.9290 0.6940 0.1250],'MarkerSize',10);
-%                     else
-%                         if strcmp(f.structs{i}.terms{j}.type,'unif')
-%                             percent = [0 100 100];
-%                         elseif f.structs{i}.terms{j}.percent > 0
-%                             percent = zeros(1,3);
-%                             percent(2:3) = f.structs{i}.terms{j}.percent;
-%                         end
-%                         dose = zeros(1,3);
-%                         dose(1:2) = f.structs{i}.terms{j}.dose;
-%                         plot(dose,percent,':','Color',[0.4 0.4 0.4],'LineWidth',3)
-%                         plot(doses,dvhInit(i,:),'--','LineWidth',3,'Color',myLines(i,:))
-%                         plot(doses,dvhFinal(i,:),'LineWidth',3,'Color',myLines(i,:))
-%                     end
-%                 end
-%                 
-%                 % Annotations
-%                 ax = gca;
-%                 ax.XLim = [0 doses(end)];
-%                 ax.YLim = [0 100];
-%                 ax.XTick = 0:20:100;
-%                 ax.YTick = 0:20:100;
-%                 ax.XTickLabel = {};
-%                 ax.YTickLabel = {};
-%                 ax.LineWidth = 2;
-%                 box on
-%                 axis square
-%             end
-%         end
+%        
 %               
 %         % Plot beamlet intensities (fig 10,14).
 %         function plotBeamletsPaper(f)
