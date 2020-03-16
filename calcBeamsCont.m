@@ -2,7 +2,7 @@ function prob = calcBeamsCont(prob,structs,print)
     % CALCBEAMSCONT Approach inspired by Lu paper.
     
     % Initialization
-    tic;
+    t1 = clock;
     prob.initProb(false);
     obj = prob.getObj();
     oDiff = getDiff(prob);
@@ -45,7 +45,8 @@ function prob = calcBeamsCont(prob,structs,print)
     prob.nIter = kk;
     prob.obj = obj;
     prob.wDiff = oDiff;
-    prob.time = toc;
+    t2 = clock;
+    prob.time = etime(t2,t1);
 end
 
 function diff = getDiff(prob)

@@ -28,7 +28,7 @@ for ii = 1:length(doses)
     prob = FluenceMapOpt(structs);
 
     % Calculate approximate dose
-    fprintf('\nCalculating approximate dose\n');
+    fprintf('\nCalculating approximate dose\n\n');
     prob.calcBeams();
     fprintf('\nIterations: %d, Time: %.2f\n',prob.nIter,prob.time);
     filename1 = ['e1' labels(ii) '_x1.mat'];
@@ -42,7 +42,7 @@ for ii = 1:length(doses)
     prob.saveResults(filename2);
 
     % Calculate approximate dose with continuation
-    fprintf('\nCalculating approximate dose with continuation\n');
+    fprintf('\nCalculating approximate dose with continuation\n\n');
     prob = calcBeamsCont(prob,structs,true);
     fprintf('\nIterations: %d, Time: %.2f\n',prob.nIter,prob.time);
     filename3 = ['e1' labels(ii) '_x3.mat'];
