@@ -26,25 +26,23 @@ bladder.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
 
 % Create problem instance
 structs = {prostate,nodes,rectum,bladder};
-prob = FluenceMapOpt(structs);
+prob = FluenceMapOpt(structs,'tol',5e-5);
 
 % Loop over different methods
-labels = ['a' 'b' 'c' 'd' 'e'];
+labels = ['a' 'b' 'c' 'd'];
 for ii = 1:4
     fprintf('\nExample 3%s\n',labels(ii));
     
     % Calculate approximate dose
-    fprintf('\nCalculating approximate dose\n');
+    fprintf('\nCalculating approximate dose\n\n');
     if ii == 1
         prob.calcBeams();                        % a) Our method    
     elseif ii == 2
         prob.calcBeamsConvex();                  % b) Convex method
     elseif ii == 3
         prob.calcBeamsIter();                    % c) Iterative method
-    elseif ii == 4
+    else
         prob.calcBeamsSlack();                   % d) Slack method
-    else                        
-        prob = calcBeamsCont(prob,structs,true); % e) Continuation method
     end
     
     % Approximate dose results
@@ -65,7 +63,7 @@ for ii = 1:4
 end
 
 % f) Polish initialization
-fprintf('\nExample 3f\n');
+fprintf('\nExample 3e\n');
 fprintf('\nCalculating polished dose\n');
 prob.calcBeamsPolish(prob.x0);
-prob.saveResults('e3f_x2.mat');
+prob.saveResults('e3e_x2.mat');
