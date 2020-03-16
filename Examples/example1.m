@@ -25,7 +25,7 @@ for ii = 1:length(doses)
 
     % Create problem instance
     structs = {prostate,rectum};
-    prob = FluenceMapOpt(structs);
+    prob = FluenceMapOpt(structs,'tol',5e-5);
 
     % Calculate approximate dose
     fprintf('\nCalculating approximate dose\n\n');
@@ -43,7 +43,8 @@ for ii = 1:length(doses)
 
     % Calculate approximate dose with continuation
     fprintf('\nCalculating approximate dose with continuation\n\n');
-    prob = calcBeamsCont(prob,structs,true);
+    prob = FluenceMapOpt(structs,'tol',1e-3);
+    prob = calcBeamsCont(prob,structs,0.5,1.5,1e-3,100,true);
     fprintf('\nIterations: %d, Time: %.2f\n',prob.nIter,prob.time);
     filename3 = ['e1' labels(ii) '_x3.mat'];
     prob.saveResults(filename3);

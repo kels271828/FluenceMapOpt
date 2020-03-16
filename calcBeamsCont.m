@@ -1,4 +1,4 @@
-function prob = calcBeamsCont(prob,structs,print)
+function prob = calcBeamsCont(prob,structs,gamma,sigma,tol,maxIter,print)
     % CALCBEAMSCONT Approach inspired by Lu paper.
     
     % Initialization
@@ -11,10 +11,7 @@ function prob = calcBeamsCont(prob,structs,print)
     end
     
     % Continuation
-    gamma = 0.5;
-    sigma = 1.5;
-    tol = prob.tol;
-    for kk = 1:prob.maxIter
+    for kk = 1:maxIter
         % Solve approximate solution
         prob.calcBeams(false);
         obj = [obj prob.getObj()];
