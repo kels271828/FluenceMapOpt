@@ -10,11 +10,11 @@ cd(currentFolder);
 
 %% OAR doesn't meet dose-volume constraint
 
-% PTV
+% PTV - prostate
 prostate.name = 'PTV_68';
 prostate.terms = {struct('type','unif','dose',81,'weight',1)};
 
-% OAR
+% OAR - rectum
 rectum.name = 'Rectum';
 rectum.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
 

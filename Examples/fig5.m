@@ -32,7 +32,7 @@ axis square
 
 %% Initialization for uniform PTV dose of 81 Gy
 
-% PTV
+% PTV - prostate
 prostate.name = 'PTV_68';
 prostate.terms = {struct('type','unif','dose',81,'weight',1)};
 
