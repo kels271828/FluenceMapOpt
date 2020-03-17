@@ -23,9 +23,25 @@ rectum.terms = {struct('type','udvc','dose',20,'percent',50,'weight',10)};
 
 % Create problem instance
 structs = {prostate,rectum};
-prob = FluenceMapOpt(structs,'angles',[17 353],'lambda',5e-6,...
-    'maxIter',32,'x0',zeros(2,1));
+prob = FluenceMapOpt(structs,'angles',[17 353],'lambda',5e-6);
 
 %% Plot objective function contours for relaxed problem
 
-plotContourW(prob,[-30 20],10);
+for ii = 1:3
+    if ii == 1
+        prob.maxIter = 26;
+        wLim = [-5 20];
+        wStep = 5;
+    elseif ii == 2
+        prob.x0 = zeros(2,1);
+        prob.maxIter = 32;
+        wLim = [-30 20];
+        wStep = 10;
+    else
+        prob.x0 = [0; 2e3];
+        prob.maxIter = 37;
+        wLim = [-30 20];
+        wStep = 10;
+    end
+    plotContourW(prob,wLim,wStep);
+end

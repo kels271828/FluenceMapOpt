@@ -76,5 +76,4 @@ for ii = 1:prob.maxIter
     plot(prob.structs{2}.terms{1}.w(1),prob.structs{2}.terms{1}.w(2),'o',...
         'MarkerFaceColor',myBlue,'MarkerEdgeColor',myBlue,'MarkerSize',10)
     plot(wStep(1),wStep(2),'s','MarkerFaceColor',myOrange,'MarkerEdgeColor',myOrange)
-    disp(ii)
 end
