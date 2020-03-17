@@ -26,7 +26,7 @@ bladder.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
 
 % Create problem instance
 structs = {prostate,nodes,rectum,bladder};
-prob = FluenceMapOpt(structs,'tol',5e-5);
+prob = FluenceMapOpt(structs);
 
 % Loop over different methods
 labels = ['a' 'b' 'c' 'd'];
@@ -36,13 +36,13 @@ for ii = 1:4
     % Calculate approximate dose
     fprintf('\nCalculating approximate dose\n\n');
     if ii == 1
-        prob.calcBeams();                        % a) Our method    
+        prob.calcBeams();       % a) Our method    
     elseif ii == 2
-        prob.calcBeamsConvex();                  % b) Convex method
+        prob.calcBeamsConvex(); % b) Convex method
     elseif ii == 3
-        prob.calcBeamsIter();                    % c) Iterative method
+        prob.calcBeamsIter();   % c) Iterative method
     else
-        prob.calcBeamsSlack();                   % d) Slack method
+        prob.calcBeamsSlack();  % d) Slack method
     end
     
     % Approximate dose results

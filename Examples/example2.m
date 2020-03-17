@@ -23,7 +23,7 @@ rectum.terms = {struct('type','udvc','dose',20,'percent',60,'weight',1),...
 % Create problem instance
 fprintf('Example 2\n');
 structs = {prostate,rectum};
-prob = FluenceMapOpt(structs,'tol',5e-5);
+prob = FluenceMapOpt(structs);
 
 % Calculate approximate dose
 fprintf('\nCalculating approximate dose\n\n');
