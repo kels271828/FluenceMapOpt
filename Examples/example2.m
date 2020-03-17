@@ -1,4 +1,4 @@
-% One PTV and one OAR with multiple dose-volume constraints
+% Example 2: One PTV and one OAR with multiple dose-volume constraints
 
 clear all; close all; clc;
 

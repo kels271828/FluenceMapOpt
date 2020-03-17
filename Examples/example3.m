@@ -1,4 +1,4 @@
-% Multiple PTVs and OARs
+% Example 3: Multiple PTVs and OARs
 
 clear all; close all; clc;
 
