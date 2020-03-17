@@ -371,13 +371,24 @@ classdef FluenceMapOpt < handle
             axis square
         end
         
-        function plotDVHPaper(prob)
+        function plotDVHPaper(prob,xMat)
             % PLOTDVHPAPER Plot dose-volume histogram of solution.
+            nX = size(xMat,2);
+            if nargin == 2
+                legendNames = cell(1,nX);
+                for ii = 1:nX
+                    legendNames{ii} = sprintf('x%d',ii);
+                end
+            end 
             
             % Compute curves and initialize
-            [doses,dvhInit] = prob.calcDVH(prob.x0);
-            [~,dvhFinal] = prob.calcDVH(prob.x);
+            dvhMat = [];
+            for ii = 1:nX
+                [doses,dvh] = prob.calcDVH(xMat(:,ii));
+                dvhMat = cat(3,dvhMat,dvh);
+            end
             myLines = lines;
+            legendHandles = [];
             
             % Plot dose-volume histograms
             for ii = 1:prob.nStructs
@@ -387,10 +398,13 @@ classdef FluenceMapOpt < handle
                     prob.plotConstraints(ii,jj);
                 end
                 % Plot dvh curves
-                plot(doses,dvhInit(ii,:),'--','Color',myLines(ii,:),...
-                    'LineWidth',2)
-                plot(doses,dvhFinal(ii,:),'Color',myLines(ii,:),...
-                        'LineWidth',2)
+                for kk = 1:nX
+                    if jj == prob.structs{ii}.nTerms
+                        dvhHandle = plot(doses,dvhMat(ii,:,kk),...
+                            'Color',myLines(kk,:),'LineWidth',2);
+                        legendHandles = [legendHandles dvhHandle];
+                    end        
+                end
                 
                 % Annotations
                 ax = gca;
@@ -426,6 +440,7 @@ classdef FluenceMapOpt < handle
             legendHandles = [];
             figure(), hold on
             
+            % Plot dose-volume histograms
             for ii = 1:prob.nStructs
                 for jj = 1:prob.structs{ii}.nTerms
                     % Plot targets/constraints
@@ -483,6 +498,46 @@ classdef FluenceMapOpt < handle
             cb = colorbar;
             cb.Label.String = 'Beamlet Intensity (MU)';
             set(subplot(1,prob.nAngles,ii),'Position',pos);
+        end
+        
+        function plotBeamsPaper(prob)
+            % PLOTBEAMSPAPER 
+            figure()
+            xRemain = prob.x;
+            for ii = 1:4
+                % Get beamlet intensities
+                [idx,nX,nY] = FluenceMapOpt.getBeamCoords(prob.angles(ii));
+                xCurrent = xRemain(1:length(idx));
+                xRemain = xRemain(length(idx)+1:end);
+                beam = zeros(nX,nY);
+                beam(idx) = xCurrent;
+                beam = beam';
+                
+                % Plot beamlet intensities
+                subplot(2,2,ii)
+                imagesc(beam), colormap gray
+                set(gca,'YDir','normal','XTick',[],'YTick',[])
+                caxis([0 max(prob.x)])
+                axis square
+            end
+            
+            % Positioning
+            h = gcf;
+            pos = h.Position;
+            h.Position = [pos(1) pos(2) pos(3) pos(3)];
+            a = subplot(2,2,1);
+            a.Position = [0.1 0.5 0.3 0.3];
+            b = subplot(2,2,2);
+            b.Position = [0.45 0.5 0.3 0.3];
+            c = subplot(2,2,3);
+            c.Position = [0.1 0.15 0.3 0.3];
+            d = subplot(2,2,4);
+            d.Position = [0.45 0.15 0.3 0.3];
+            
+            % Colorbar
+            e = colorbar('southoutside','Ticks',0:1000:3000,...
+                'TickLabels',{},'LineWidth',2);
+            e.Position = [0.1 0.077 0.65 0.02700];
         end
         
         function plotDose(prob,threshold)
@@ -1281,50 +1336,6 @@ classdef FluenceMapOpt < handle
 %             g.XTickLabels = {};
 %             g.YTickLabels = {};
 %             g.LineWidth = 2;      
-%         end
-%        
-%               
-%         % Plot beamlet intensities (fig 10,14).
-%         function plotBeamletsPaper(f)
-%             
-%             figure()
-%             x = f.x;
-%             
-%             for i = 1:4
-%                 % Get x and y positions
-%                 [linIdx,nx,ny] = f.getBeamlets(f.angles(i));
-%                 
-%                 % Get beamlet intensities
-%                 xTemp = x(1:length(linIdx));
-%                 x = x(length(linIdx)+1:end);
-%                 B = zeros(nx,ny);
-%                 B(linIdx) = xTemp;
-%                 B = B';
-%                 
-%                 % Plot beamlet intensities
-%                 subplot(2,2,i)
-%                 imagesc(B), colormap gray
-%                 set(gca,'YDir','normal','XTick',[],'YTick',[])
-%                 caxis([0 max(f.x)])
-%                 axis square
-%             end
-%             
-%             % Positioning
-%             h = gcf;
-%             pos = h.Position;
-%             h.Position = [pos(1) pos(2) pos(3) pos(3)];
-%             a = subplot(2,2,1);
-%             a.Position = [0.1 0.5 0.3 0.3];
-%             b = subplot(2,2,2);
-%             b.Position = [0.45 0.5 0.3 0.3];
-%             c = subplot(2,2,3);
-%             c.Position = [0.1 0.15 0.3 0.3];
-%             d = subplot(2,2,4);
-%             d.Position = [0.45 0.15 0.3 0.3];
-%             
-%             % Colorbar
-%             e = colorbar('southoutside','Ticks',0:1000:3000,'TickLabels',{},'LineWidth',2);
-%             e.Position = [0.1    0.077    0.65    0.02700];
 %         end
         end
     end
