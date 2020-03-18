@@ -1,5 +1,8 @@
-% Figure 10: Prostate tumor with uniform dose target of 81 Gy with various
-% dose-volume constraints on the rectum.
+% Figure 10: Dose-volume histograms for prostate tumor with uniform dose
+% target of 81 Gy with various dose-volume constraints on the rectum.
+
+% NOTE: Modified FluenceMapOpt.plotConstraints to dotted line for uniform
+% target dose.
 
 clear all; close all; clc;
 
@@ -26,7 +29,7 @@ structs = {prostate,rectum};
 prob = FluenceMapOpt(structs);
 
 % Load approximate dose
-load('ex2Results/ex2_x1.mat')
+load('ex2Results/ex2Approx.mat')
 x0 = results.x0;
 x1 = results.x;
 disp('Approximate dose')
@@ -37,7 +40,7 @@ fprintf('PTV D95: %.2f, %% < 81 Gy: %.2f, %% > 85 Gy: %.2f\n\n',...
     prob.getPercent(1,2,x1),prob.getPercent(1,3,x1));
 
 % Load polished dose
-load('ex2Results/ex2_x2.mat')
+load('ex2Results/ex2Polish.mat')
 x2 = results.x;
 disp('Polished Dose')
 fprintf('OAR %% > 20 Gy: %.2f, %% > 50 Gy: %.2f, %% > 60 Gy: %.2f\n',...

@@ -29,26 +29,26 @@ for ii = 1:length(doses)
     prob = FluenceMapOpt(structs);
 
     % Load approximate dose
-    load(['ex1Results/ex1' labels(ii) '_x1.mat'])
+    load(['ex1Results/ex1' labels(ii) 'Approx.mat'])
     x0 = results.x0;
     x1 = results.x;
     disp('Approximate dose')
     fprintf('OAR %% > %d Gy: %.2f, PTV D95: %.2f\n\n',doses(ii),...
         prob.getPercent(2,1,x1),prob.getPercentile(prob.structs{1}.A*x1,0.95));
-    % OAR % > 30 Gy: 33.37, PTV D95: 79.18
-    % OAR % > 10 Gy: 23.85, PTV D95: 74.81
+    % OAR % > 30 Gy: 34.16, PTV D95: 79.17
+    % OAR % > 10 Gy: 24.76, PTV D95: 74.77
 
     % Load polished dose
-    load(['ex1Results/ex1' labels(ii) '_x2.mat'])
+    load(['ex1Results/ex1' labels(ii) 'Polish.mat'])
     x2 = results.x;
     disp('Polished Dose')
-    fprintf('OAR %% > 50 Gy: %.2f, PTV D95: %.2f\n\n',...
+    fprintf('OAR %% > %d Gy: %.2f, PTV D95: %.2f\n\n',doses(ii),...
         prob.getPercent(2,1,x2),prob.getPercentile(prob.structs{1}.A*x2,0.95));
-    % OAR % > 50 Gy: 29.98, PTV D95: 79.12
-    % OAR % > 50 Gy: 8.19, PTV D95: 57.29
+    % OAR % > 30 Gy: 29.98, PTV D95: 79.15
+    % OAR % > 10 Gy: 8.19, PTV D95: 57.29
 
     % Load approximate dose with continuation
-    load(['ex1Results/ex1' labels(ii) '_x3.mat'])
+    load(['ex1Results/ex1' labels(ii) 'Continue.mat'])
     x3 = results.x;
     disp('Approximate dose with continuation')
     fprintf('OAR %% > %d Gy: %.2f, PTV D95: %.2f\n\n',doses(ii),...

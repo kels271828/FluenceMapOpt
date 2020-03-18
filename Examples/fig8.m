@@ -22,13 +22,23 @@ structs = {prostate,rectum};
 prob = FluenceMapOpt(structs);
 
 % Load approximate dose
-load('ex1Results/ex1a_x1.mat')
+load('ex1Results/ex1aApprox.mat')
 x0 = results.x0;
 x1 = results.x;
 prob.x = x1;
 
 % Plot dose
 prob.plotDosePaper()
+
+% Remove extra whitespace
+ax = gca;
+outerpos = ax.OuterPosition;
+ti = ax.TightInset;
+left = outerpos(1) + ti(1);
+bottom = outerpos(2) + ti(2);
+width = outerpos(3) - ti(1) - ti(3);
+height = outerpos(4) - ti(2) - ti(4);
+ax.Position = [left bottom width height];
 
 % Plot beamlets
 prob.plotBeamsPaper()

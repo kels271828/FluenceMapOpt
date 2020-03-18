@@ -22,24 +22,24 @@ structs = {prostate,rectum};
 prob = FluenceMapOpt(structs);
 
 % Load approximate dose
-load('ex1Results/ex1a_x1.mat')
+load('ex1Results/ex1aApprox.mat')
 x0 = results.x0;
 x1 = results.x;
 disp('Approximate dose')
 fprintf('OAR %% > 50 Gy: %.2f, PTV D95: %.2f\n\n',...
     prob.getPercent(2,1,x1),prob.getPercentile(prob.structs{1}.A*x1,0.95));
-% OAR % > 50 Gy: 51.52, PTV D95: 79.66
+% OAR % > 50 Gy: 52.73, PTV D95: 79.67
 
 % Load polished dose
-load('ex1Results/ex1a_x2.mat')
+load('ex1Results/ex1aPolish.mat')
 x2 = results.x;
 disp('Polished Dose')
 fprintf('OAR %% > 50 Gy: %.2f, PTV D95: %.2f\n\n',...
     prob.getPercent(2,1,x2),prob.getPercentile(prob.structs{1}.A*x2,0.95));
-% OAR % > 50 Gy: 50.00, PTV D95: 79.65
+% OAR % > 50 Gy: 49.76, PTV D95: 79.65
 
 % Load approximate dose with continuation
-load('ex1Results/ex1a_x3.mat')
+load('ex1Results/ex1aContinue.mat')
 x3 = results.x;
 disp('Approximate dose with continuation')
 fprintf('OAR %% > 50 Gy: %.2f, PTV D95: %.2f\n',...

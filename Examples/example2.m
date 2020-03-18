@@ -29,10 +29,10 @@ prob = FluenceMapOpt(structs);
 fprintf('\nCalculating approximate dose\n\n');
 prob.calcBeams();
 fprintf('\nIterations: %d, Time: %.2f\n',prob.nIter,prob.time);
-prob.saveResults('e2_x1.mat');
+prob.saveResults('ex2Approx.mat');
 
 % Calculate polished dose
 fprintf('\nCalculating polished dose\n');
 prob.calcBeamsPolish(prob.x);
 fprintf('\nTime: %.2f\n',prob.time);
-prob.saveResults('e2_x2.mat');
+prob.saveResults('ex2Polish.mat');

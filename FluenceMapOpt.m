@@ -1073,17 +1073,11 @@ classdef FluenceMapOpt < handle
         function plotConstraints(prob,ii,jj)
             % PLOTCONSTRAINTS Plot constraint on dose-volume histogram.
             isUnif = strcmp(prob.structs{ii}.terms{jj}.type,'unif');
-            if ~isUnif && prob.structs{ii}.terms{jj}.percent == 0
-                % Plot star at maximum dose value
-                plot(prob.structs{ii}.terms{jj}.dose,0,'p',...
-                    'MarkerFaceColor',[0.9290 0.6940 0.1250],...
-                    'MarkerEdgeColor',[0.9290 0.6940 0.1250],...
-                    'MarkerSize',10);
-            else
+            if isUnif || prob.structs{ii}.terms{jj}.percent > 0
                 % Get vertical coordinates of targets/constraints
                 if isUnif
                     percent = [0 100 100];
-                elseif prob.structs{ii}.terms{jj}.percent > 0
+                else
                     percent = zeros(1,3);
                     constraint = prob.structs{ii}.terms{jj}.percent;
                     if strcmp(prob.structs{ii}.terms{jj}.type,'ldvc')
