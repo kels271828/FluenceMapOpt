@@ -166,13 +166,12 @@ classdef FluenceMapOpt < handle
                 print = true;
             end
             
-            % Get number of dose-volume constrained voxels
+            % Get number of dose-volume constraint terms
             numA = 0;
             for ii = 1:prob.nStructs
-                nVoxels = prob.structs{ii}.nVoxels;
                 for jj = 1:prob.structs{ii}.nTerms
                     if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-                        numA = numA + nVoxels;
+                        numA = numA + 1;
                     end
                 end
             end
@@ -189,21 +188,19 @@ classdef FluenceMapOpt < handle
             subject to
                 prob.lb <= xRelax;
                 zeros(numA,1) <= a;
-                countA = 1;
+                idxA = 1;
                 for ii = 1:prob.nStructs
                     At = prob.structs{ii}.A;
                     nVoxels = prob.structs{ii}.nVoxels;
                     for jj = 1:prob.structs{ii}.nTerms
                         if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-                            idx1 = countA;
-                            idx2 = countA + nVoxels - 1;
                             d = prob.structs{ii}.terms{jj}.d;
                             k = prob.structs{ii}.terms{jj}.k;
                             s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
                             res = (At*xRelax - d);
-                            termSum = sum(pos(a(idx1:idx2) + (-1)^s*res));
-                            termSum <= a(idx1:idx2)*k;
-                            countA = idx2 + 1;
+                            termSum = sum(pos(a(idxA) + (-1)^s*res));
+                            termSum <= a(idxA)*k;
+                            idxA = idxA + 1;
                         end
                     end
                 end
@@ -212,15 +209,12 @@ classdef FluenceMapOpt < handle
             prob.time = toc;
         end
         
-        function calcBeamsIter(prob,print,tol)
+        function calcBeamsIter(prob,print)
             % ITERDOSE Approach inspired by Llacer paper.
             %
             %   NOTE: Lower dose-volume constraints not implemented.
             if nargin == 1
                 print = true;
-            end
-            if nargin == 2
-                tol = 5e-3;
             end
             
             % Fluence map optimization
@@ -243,7 +237,7 @@ classdef FluenceMapOpt < handle
                 end
                 
                 % Check convergence
-                if xDiff < tol
+                if xDiff < prob.tol
                     break
                 end
             end
@@ -255,7 +249,7 @@ classdef FluenceMapOpt < handle
             if nargin == 1
                 print = true;
             end
-            if isempty(prob.Au)
+            if isempty(prob.As)
                 [prob.As,prob.Hs,prob.lbs,prob.ubs] = prob.getA('slack');
             end
             

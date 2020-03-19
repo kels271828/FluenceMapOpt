@@ -26,7 +26,7 @@ bladder.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
 
 % Create problem instance
 structs = {prostate,nodes,rectum,bladder};
-prob = FluenceMapOpt(structs);
+prob = FluenceMapOpt(structs,'maxIter',2000);
 
 % Loop over different methods
 labels = ['a' 'b' 'c' 'd'];
