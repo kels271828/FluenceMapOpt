@@ -51,14 +51,14 @@ for ii = 1:4
     else
         fprintf('\nIterations: %d, Time: %.2f\n',prob.nIter,prob.time);
     end
-    filename1 = ['e3' labels(ii) 'Approx.mat'];
+    filename1 = ['ex3' labels(ii) 'Approx.mat'];
     prob.saveResults(filename1);
     
     % Calculate polished dose
     fprintf('\nCalculating polished dose\n');
     prob.calcBeamsPolish(prob.x);
     fprintf('\nTime: %.2f\n',prob.time);
-    filename2 = ['e3' labels(ii) 'Polish.mat'];
+    filename2 = ['ex3' labels(ii) 'Polish.mat'];
     prob.saveResults(filename2);
 end
 
@@ -66,4 +66,5 @@ end
 fprintf('\nExample 3e\n');
 fprintf('\nCalculating polished dose\n');
 prob.calcBeamsPolish(prob.x0);
-prob.saveResults('e3ePolish.mat');
+prob.saveResults('ex3ePolish.mat');
+fprintf('\nTime: %.2f\n',prob.time);

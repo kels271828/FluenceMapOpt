@@ -66,7 +66,8 @@ colors = [2 7 7 3 4 1];
 
 % Plot organ contours
 for i = 1:length(prob.mask)-1
-   contour(prob.mask{organs(i)}(idx1,idx2,50),1,'Color',myLines(colors(i),:),'LineWidth',2); 
+   contour(prob.mask{organs(i)}(idx1,idx2,50),1,...
+       'Color',myLines(colors(i),:),'LineWidth',2); 
 end
 
 % Annotations
