@@ -614,34 +614,6 @@ classdef FluenceMapOpt < handle
             colorbar('southoutside','Ticks',0:20:100,'TickLabels',{},...
                 'LineWidth',2)
         end
-         
-        % change format
-        function printStats(prob,x)
-            % PRINTSTATS Print solution statistics with Markdown formatting.
-            if nargin == 1
-                x = prob.x;
-            end
-            for ii = 1:prob.nStructs
-                fprintf('Structure: %s\n',prob.structs{ii}.name)
-                for jj = 1:prob.structs{ii}.nTerms
-                    termType = prob.structs{ii}.terms{jj}.type;
-                    if strcmp(termType,'unif') % Uniform PTV objective
-                        dose = prob.structs{ii}.A*x;
-                        obj = norm(dose - prob.structs{ii}.terms{jj}.d);
-                        D95 = FluenceMapOpt.getPercentile(dose,0.95);
-                        fprintf('* unif | %.2f | %.2f | %.2f | %.2f | %.2f | %.2f | %.2f\n',...
-                            min(dose),mean(dose),median(dose),D95,...
-                            max(dose),std(dose),obj) 
-                    elseif strcmp(termType,'ldvc') % Lower dose-volume constraint
-                        fprintf('* ldvc | %.2f | %.2f\n',...
-                            prob.getPercent(ii,jj,x), prob.getArea(ii,x))
-                    else % Upper dose-volume constraint
-                        fprintf('* udvc | %.2f | %.2f\n',...
-                            prob.getPercent(ii,jj,x), prob.getArea(ii,x))
-                    end
-                end  
-            end
-        end
         
         function saveResults(prob,fileName)
             % SAVERESULTS current state and results.
