@@ -33,12 +33,13 @@ classdef FluenceMapOpt < handle
     %   modified to work with other datasets.
     
     properties (SetAccess = private)
-        structs               % Body structures
+        %structs               % Body structures
         angles = 0:52:358;    % Gantry angles
         overlap = false;      % Allow overlaps in structures
         lambda = 1e-8;        % L2 regularization coefficient
         nnls = 'minConf_TMP'; % Method to compute NNLS problem
         nStructs              % Number of body structures
+        nDVC                  % Number of dose-volume constraints
         nAngles               % Number of angles
         nBeamlets             % Number of beamlets
     end
@@ -61,6 +62,7 @@ classdef FluenceMapOpt < handle
     end
 
     properties
+        structs               % Body structures
         x0              % Initial beamlet intensities
         x               % Final beamlet intensities
         obj             % Objective function values
@@ -104,7 +106,7 @@ classdef FluenceMapOpt < handle
             
             % Comput internal variables
             [prob.D,prob.nBeamlets] = FluenceMapOpt.getD(prob.angles);
-            prob.structs = FluenceMapOpt.getStructVars(structs,...
+            [prob.structs,prob.nDVC] = FluenceMapOpt.getStructVars(structs,...
                 prob.nStructs,prob.overlap,prob.D);
             prob.names = FluenceMapOpt.getNames(prob.structs,prob.nStructs);
             prob.mask = FluenceMapOpt.getMaskStruct(prob.names,prob.overlap);
@@ -140,6 +142,7 @@ classdef FluenceMapOpt < handle
                         end
                     end
                 end
+                wDiffSum = wDiffSum/prob.nDVC;
                 
                 % Calculate objective
                 prob.nIter = kk;
@@ -222,11 +225,11 @@ classdef FluenceMapOpt < handle
             prob.x = prob.x0;
             step = size(prob.Au,1) - prob.nBeamlets;
             for ii = 1:prob.maxIter
-                x_old = prob.x;
+                xOld = prob.x;
                 grad = prob.getIterGrad(prob.x);
                 prob.x = prob.x - step*grad;
                 prob.x(prob.x < 0) = 0;
-                xDiff = norm(x_old - prob.x)/prob.nBeamlets;
+                xDiff = norm(xOld - prob.x)/prob.nBeamlets;
                 
                 % Calculate objective
                 prob.nIter = ii;
@@ -237,7 +240,7 @@ classdef FluenceMapOpt < handle
                 end
                 
                 % Check convergence
-                if xDiff < prob.tol
+                if xDiff <= prob.tol
                     break
                 end
             end
@@ -269,6 +272,7 @@ classdef FluenceMapOpt < handle
                         end
                     end
                 end
+                uDiffSum = uDiffSum/prob.nDVC;
                 
                 % Calculate objective
                 prob.nIter = kk;
@@ -615,6 +619,46 @@ classdef FluenceMapOpt < handle
                 'LineWidth',2)
         end
         
+        function plotObjPaper(prob)
+            % PLOTOBJPAPER Plot objective function values.
+            
+            myLines = lines;
+           
+            % Objective function
+            figure(1)
+            subplot(3,1,1)
+            plot(0:prob.nIter,prob.obj(1:prob.nIter+1),...
+                'Color',[0.5,0.5,0.5],'LineWidth',2)
+            FluenceMapOpt.adjustAxis(gca)
+            
+            % Objective terms
+            for ii = 1:prob.nStructs
+                for jj = 1:length(prob.structs{ii}.terms)
+                    figure(1)
+                    subplot(3,1,ii+1)
+                    plot(0:prob.nIter,prob.structs{ii}.terms{jj}.obj(1:prob.nIter+1),...
+                        'Color',myLines(ii,:),'LineWidth',2);
+                    FluenceMapOpt.adjustAxis(gca)
+            
+                    % Voxels under or over dose constraints
+                    if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                        figure(2), hold on
+                        subplot(2,1,2)
+                        plot(0:prob.nIter,prob.structs{ii}.terms{jj}.dPos(1:prob.nIter+1),...
+                            'Color',myLines(ii,:),'LineWidth',2);
+                        FluenceMapOpt.adjustAxis(gca)
+                        set(gca,'YTick',52:2:56);
+                    end
+                end
+            end
+            
+            figure(2)
+            subplot(2,1,1)
+            plot(1:prob.nIter,prob.wDiff(1:prob.nIter),'Color',[0.5,0.5,0.5],...
+                'LineWidth',2)
+            FluenceMapOpt.adjustAxis(gca);
+        end   
+        
         function saveResults(prob,fileName)
             % SAVERESULTS current state and results.
             results = struct('structs',prob.structs,...
@@ -792,11 +836,11 @@ classdef FluenceMapOpt < handle
                 for jj = 1:prob.structs{ii}.nTerms
                     if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
                         % PTV initialization
-                        initDose = prob.structs{ii}.A*prob.x0;
-                        res = initDose - prob.structs{ii}.terms{jj}.d;
                         s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
+                        initDose = prob.structs{ii}.A*prob.x0;
+                        res = (-1)^s*(initDose - prob.structs{ii}.terms{jj}.d);
                         k = prob.structs{ii}.terms{jj}.k;
-                        w = FluenceMapOpt.projW((-1)^s*res,k);
+                        w = FluenceMapOpt.projW(res,k);
                         prob.structs{ii}.terms{jj}.w = w;
                         
                         % DVC paper initialization
@@ -1121,8 +1165,9 @@ classdef FluenceMapOpt < handle
             nBeamlets = size(D,2);
         end
 
-        function structs = getStructVars(structs,nStructs,overlap,D)
+        function [structs,nDVC] = getStructVars(structs,nStructs,overlap,D)
             % GETSTRUCTVARS Get structure-specific variables.
+            nDVC = 0;
             vPrev = [];
             for ii = 1:nStructs
                 load([structs{ii}.name '_VOILIST.mat']);
@@ -1134,6 +1179,11 @@ classdef FluenceMapOpt < handle
                 structs{ii}.nTerms = length(structs{ii}.terms);
                 structs{ii}.terms = FluenceMapOpt.getTermVars(structs{ii}.terms,...
                     structs{ii}.nTerms,structs{ii}.nVoxels);
+                for jj = 1:structs{ii}.nTerms
+                   if ~strcmp(structs{ii}.terms{jj}.type,'unif')
+                       nDVC = nDVC + 1;
+                   end
+                end
             end
         end
         
@@ -1247,56 +1297,17 @@ classdef FluenceMapOpt < handle
             doseP = dose_sort(idx);
         end
         
-        % not implemented...
-        function paperPlots()
-%         % Plot objective function values (fig 8).
-%         function plotObjPaper(f)
-%             
-%             myLines = lines;
-%            
-%             % Objective function
-%             figure(1)
-%             subplot(3,1,1)
-%             plot(0:f.nIter,f.obj(1:f.nIter+1),'Color',[0.5,0.5,0.5],'LineWidth',3)
-%             f.adjustAxis(gca)
-%             
-%             % Objective terms
-%             for i = 1:f.nStructs
-%                 for j = 1:length(f.structs{i}.terms)
-%                     figure(1)
-%                     subplot(3,1,i+1)
-%                     plot(0:f.nIter,f.structs{i}.terms{j}.obj(1:f.nIter+1),'Color',myLines(i,:),'LineWidth',3);
-%                     f.adjustAxis(gca)
-%             
-%                     % Voxels under or over dose constraints
-%                     if ~strcmp(f.structs{i}.terms{j}.type,'unif')
-%                         figure(2), hold on
-%                         subplot(2,1,2)
-%                         plot(0:f.nIter,f.structs{i}.terms{j}.vdiff(1:f.nIter+1),'Color',myLines(i,:),'LineWidth',3);
-%                         f.adjustAxis(gca)
-%                         set(gca,'YTick',52:2:56);
-%                     end
-%                 end
-%             end
-%             
-%             figure(2)
-%             subplot(2,1,1)
-%             plot(1:f.nIter,f.err(1:f.nIter),'Color',[0.5,0.5,0.5],'LineWidth',3)
-%             f.adjustAxis(gca);
-%         end   
-%         
-%         % Readjust axes limits.
-%         function adjustAxis(~,g)
-%             
-%             axis tight
-%             yVals = g.YLim;
-%             yPad = 0.1*(yVals(2) - yVals(1));
-%             g.YLim = [yVals(1)-yPad yVals(2)+yPad];
-%             g.XTick = 0:50:200;
-%             g.XTickLabels = {};
-%             g.YTickLabels = {};
-%             g.LineWidth = 2;      
-%         end
+        function adjustAxis(g)
+            % ADJUSTAXIS Readjust axes limits for objective plot.
+            axis tight
+            yVals = g.YLim;
+            yPad = 0.1*(yVals(2) - yVals(1));
+            g.YLim = [yVals(1)-yPad yVals(2)+yPad];
+            g.XLim = [0 11];
+            g.XTick = 0:2:12;
+            g.XTickLabels = {};
+            g.YTickLabels = {};
+            g.LineWidth = 2;      
         end
     end
 end

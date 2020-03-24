@@ -1,5 +1,6 @@
-function prob = calcBeamsCont(prob,structs,gamma,sigma,tol,maxIter,print)
-    % CALCBEAMSCONT Approach inspired by Lu paper.
+function prob = calcBeamsContinue(prob,structs,gamma,sigma,tol,maxIter,...
+    print,consolidate)
+    % CALCBEAMSCONTINUE Approach inspired by Lu paper.
     
     % Initialization
     t1 = clock;
@@ -13,10 +14,16 @@ function prob = calcBeamsCont(prob,structs,gamma,sigma,tol,maxIter,print)
     % Continuation
     for kk = 1:maxIter
         % Solve approximate solution
-        prob.calcBeams(false);
-        obj = [obj prob.getObj()];
-        oDiff = [oDiff getDiff(prob)];
-        
+        if consolidate
+           [prob,objTemp,oDiffTemp] = calcBeamsConsolidate(prob,false);
+           obj = [obj objTemp];
+           oDiff = [oDiff oDiffTemp];
+        else
+            prob.calcBeams(false);
+            obj = [obj prob.getObj()];
+            oDiff = [oDiff getDiff(prob)];
+        end
+            
         % Print status
         if print
             fprintf('iter: %d, obj: %7.4e, oDiff: %7.4e\n',kk,obj(end),oDiff(end));
