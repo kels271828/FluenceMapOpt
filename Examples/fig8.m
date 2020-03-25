@@ -24,10 +24,10 @@ xMat = prob.x0;
 disp('Initialization')
 fprintf('OAR %% > 50 Gy: %.2f, PTV D95: %.2f\n\n',prob.getPercent(2,1,xMat),...
     prob.getPercentile(prob.structs{1}.A*xMat,0.95));
-% OAR % > 50 Gy: 56.80, PTV D95: 79.65
+% OAR % > 50 Gy: 56.80, PTV D95: 79.65, Time: 0.179169
 
 % Load approximate dose
-load(['ex1Results/ex1aApprox.mat'])
+load('ex1Results/ex1aApprox.mat')
 x = results.x;
 xMat = [xMat x];
 t = results.time;
@@ -37,7 +37,7 @@ fprintf('OAR %% > 50 Gy: %.2f, PTV D95: %.2f, Time: %.2f\n\n',...
 % OAR % > 50 Gy: 52.73, PTV D95: 79.67, Time: 2.48
 
 % Load approximate dose with continuation
-load(['ex1Results/ex1aContinue.mat'])
+load('ex1Results/ex1aContinue.mat')
 x = results.x;
 xMat = [xMat x];
 t = results.time;
@@ -47,7 +47,7 @@ fprintf('OAR %% > 50 Gy: %.2f, PTV D95: %.2f, Time: %.2f\n\n',...
 % OAR % > 50 Gy: 50.85, PTV D95: 79.67, Time: 65.70
 
 % Load polished dose
-load(['ex1Results/ex1aPolish.mat'])
+load('ex1Results/ex1aPolish.mat')
 x = results.x;
 xMat = [xMat x];
 t = results.time;

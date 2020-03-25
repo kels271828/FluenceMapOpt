@@ -30,8 +30,8 @@ for ii = 1:length(labels)
     disp('Initialization')
     fprintf('OAR %% > %d Gy: %.2f, PTV D95: %.2f\n\n',doses(ii),...
         prob.getPercent(2,1,xMat),prob.getPercentile(prob.structs{1}.A*xMat,0.95));
-    % OAR % > 30 Gy: 64.14, PTV D95: 79.65
-    % OAR % > 10 Gy: 73.97, PTV D95: 79.65
+    % OAR % > 30 Gy: 64.14, PTV D95: 79.65, Time: 0.1792
+    % OAR % > 10 Gy: 73.97, PTV D95: 79.65, Time: 0.1792
         
     % Load approximate dose
     load(['ex1Results/ex1' labels(ii) 'Approx.mat'])

@@ -1,5 +1,4 @@
-% Figure 9: Dose and beamlets for prostate tumor with uniform dose target
-% of 81 Gy with a 50%, 50 Gy dose-volume constraint on the rectum.
+% Figure 14: Dose and beamlets for multiple PTVs and OARs
 
 clear all; close all; clc;
 
@@ -13,16 +12,24 @@ cd(currentFolder);
 prostate.name = 'PTV_68';
 prostate.terms = {struct('type','unif','dose',81,'weight',1)};
 
+% PTV - lymph nodes
+nodes.name = 'PTV_56';
+nodes.terms = {struct('type','unif','dose',60,'weight',1)};
+
 % OAR - rectum
 rectum.name = 'Rectum';
 rectum.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
 
+% OAR - bladder
+bladder.name = 'Bladder';
+bladder.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
+
 % Create problem instance
-structs = {prostate,rectum};
+structs = {prostate,nodes,rectum,bladder};
 prob = FluenceMapOpt(structs);
 
 % Load approximate dose
-load('ex1Results/ex1aApprox.mat')
+load('ex3Results/ex3bApprox.mat')
 prob.x = results.x;
 
 % Plot dose

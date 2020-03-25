@@ -1,4 +1,4 @@
-% Figure 12: Dose-volume histograms for approximate solutions for problem
+% Figure 13: Dose-volume histograms for polished solutions for problem
 % with multiple PTVs and OARs.
 
 clear all; close all; clc;
@@ -28,21 +28,13 @@ bladder.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
 % Create problem instance
 structs = {prostate,nodes,rectum,bladder};
 prob = FluenceMapOpt(structs);
-xMat = prob.x0;
-fprintf('\nMethod a\n');
-fprintf('Rectum %% > 50 Gy: %.2f, Bladder %% > 30 Gy: %.2f\n',...
-    prob.getPercent(3,1,prob.x0),prob.getPercent(4,1,prob.x0));
-fprintf('Prostate D95: %.2f, Lymph Nodes D95: %.2f\n',...
-    prob.getPercentile(prob.structs{1}.A*prob.x0,0.95),...
-    prob.getPercentile(prob.structs{2}.A*prob.x0,0.95));
-prob.x = prob.x0;
-fprintf('Uniform Objective: %.2f\n',prob.getObj('unif'));
+xMat = [];
 
 % Load approximate dose
-labels = ['d' 'b' 'f' 'e' 'c'];
+labels = ['a' 'd' 'b' 'f' 'e' 'c'];
 for ii = 1:length(labels)
     fprintf('\nMethod %s\n',labels(ii));
-    load(['ex3Results/ex3' labels(ii) 'Approx.mat'])
+    load(['ex3Results/ex3' labels(ii) 'Polish.mat'])
     x = results.x;
     xMat = [xMat x];
     fprintf('Rectum %% > 50 Gy: %.2f, Bladder %% > 30 Gy: %.2f\n',...
@@ -57,40 +49,40 @@ for ii = 1:length(labels)
 end
 
 % Constraint Generation
-% Rectum % > 50 Gy: 82.47, Bladder % > 30 Gy: 91.87
-% Prostate D95: 76.96, Lymph Nodes D95: 58.53
-% Uniform Objective: 10.49
-% Time: 0.323528
+% Rectum % > 50 Gy: 42.79, Bladder % > 30 Gy: 27.50
+% Prostate D95: 76.59, Lymph Nodes D95: 55.73
+% Uniform Objective: 13.31
+% Time: 40.03
 
 % Iterative Method
-% Rectum % > 50 Gy: 65.67, Bladder % > 30 Gy: 58.14
-% Prostate D95: 75.70, Lymph Nodes D95: 55.23
-% Uniform Objective: 12.38
-% Time: 3.37
+% Rectum % > 50 Gy: 49.12, Bladder % > 30 Gy: 29.19
+% Prostate D95: 76.62, Lymph Nodes D95: 55.55
+% Uniform Objective: 13.13
+% Time: 43.86
 
 % Our Method
-% Rectum % > 50 Gy: 57.33, Bladder % > 30 Gy: 38.14
-% Prostate D95: 76.70, Lymph Nodes D95: 57.51
-% Uniform Objective: 11.39
-% Time: 15.42
+% Rectum % > 50 Gy: 49.91, Bladder % > 30 Gy: 29.98
+% Prostate D95: 76.61, Lymph Nodes D95: 57.07
+% Uniform Objective: 11.90
+% Time: 39.31
 
 % Our Method with Continuation
-% Rectum % > 50 Gy: 51.67, Bladder % > 30 Gy: 30.82
-% Prostate D95: 76.54, Lymph Nodes D95: 57.27
-% Uniform Objective: 11.82
-% Time: 1231.80
+% Rectum % > 50 Gy: 49.91, Bladder % > 30 Gy: 30.00
+% Prostate D95: 76.58, Lymph Nodes D95: 57.30
+% Uniform Objective: 11.81
+% Time: 38.59
 
 % Slack Method
-% Rectum % > 50 Gy: 53.38, Bladder % > 30 Gy: 35.48
-% Prostate D95: 75.89, Lymph Nodes D95: 57.75
-% Uniform Objective: 12.09
-% Time: 1370.15
+% Rectum % > 50 Gy: 49.73, Bladder % > 30 Gy: 29.91
+% Prostate D95: 75.82, Lymph Nodes D95: 57.61
+% Uniform Objective: 12.26
+% Time: 34.50
 
 % Convex Method
-% Rectum % > 50 Gy: 19.84, Bladder % > 30 Gy: 12.37
-% Prostate D95: 71.98, Lymph Nodes D95: 54.52
-% Uniform Objective: 23.45
-% Time: 267.78
+% Rectum % > 50 Gy: 38.34, Bladder % > 30 Gy: 26.38
+% Prostate D95: 75.21, Lymph Nodes D95: 57.49
+% Uniform Objective: 13.12
+% Time: 35.25
 
 % Plot dose-volume histograms
 prob.plotDVHPaper(xMat)
