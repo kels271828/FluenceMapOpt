@@ -116,9 +116,7 @@ classdef FluenceMapOpt < handle
             
             % Compute initial beamlets
             if isempty(prob.x0)
-                tic;
                 prob.x0 = prob.projX('unif');
-                toc
             end
             prob.x = prob.x0;
         end
