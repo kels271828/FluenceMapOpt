@@ -1,7 +1,5 @@
-% Figure 7: Convergence of objective function for one PTV and one OAR with
-% one dose-volume constraint.
-
-% Note: Change SetAccess of FluenceMapOpt property structs.
+% Figure 7: Dose and beamlets for prostate tumor with uniform dose target
+% of 81 Gy with a 50%, 50 Gy dose-volume constraint on the rectum.
 
 clear all; close all; clc;
 
@@ -22,12 +20,23 @@ rectum.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
 % Create problem instance
 structs = {prostate,rectum};
 prob = FluenceMapOpt(structs);
-load('ex1Results/ex1aApprox.mat');
-prob.x = results.x;
-[prob.structs{1},prob.structs{2}] = results.structs;
-prob.nIter = results.nIter;
-prob.obj = results.obj;
-prob.wDiff = results.wDiff;
 
-% Plot converngence
-prob.plotObjPaper();
+% Load approximate dose
+load('ex1Results/ex1aApprox.mat')
+prob.x = results.x;
+
+% Plot dose
+prob.plotDosePaper()
+
+% Remove extra whitespace
+ax = gca;
+outerpos = ax.OuterPosition;
+ti = ax.TightInset;
+left = outerpos(1) + ti(1);
+bottom = outerpos(2) + ti(2);
+width = outerpos(3) - ti(1) - ti(3);
+height = outerpos(4) - ti(2) - ti(4);
+ax.Position = [left bottom width height];
+
+% Plot beamlets
+prob.plotBeamsPaper()

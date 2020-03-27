@@ -33,7 +33,7 @@ classdef FluenceMapOpt < handle
     %   modified to work with other datasets.
     
     properties (SetAccess = private)
-        %structs               % Body structures
+        structs               % Body structures
         angles = 0:52:358;    % Gantry angles
         overlap = false;      % Allow overlaps in structures
         lambda = 1e-8;        % L2 regularization coefficient
@@ -62,7 +62,6 @@ classdef FluenceMapOpt < handle
     end
 
     properties
-        structs               % Body structures
         x0              % Initial beamlet intensities
         x               % Final beamlet intensities
         obj             % Objective function values
@@ -385,8 +384,8 @@ classdef FluenceMapOpt < handle
                 [doses,dvh] = prob.calcDVH(xMat(:,ii));
                 dvhMat = cat(3,dvhMat,dvh);
             end
-            myLines = lines;
-            legendHandles = [];
+            myColors = lines;
+            myColors = myColors([2 3 1],:);
             
             % Plot dose-volume histograms
             for ii = 1:prob.nStructs
@@ -398,9 +397,8 @@ classdef FluenceMapOpt < handle
                 % Plot dvh curves
                 for kk = 1:nX
                     if jj == prob.structs{ii}.nTerms
-                        dvhHandle = plot(doses,dvhMat(ii,:,kk),...
-                            'Color',myLines(kk,:),'LineWidth',2);
-                        legendHandles = [legendHandles dvhHandle];
+                        plot(doses,dvhMat(ii,:,kk),'Color',myColors(kk,:),...
+                            'LineWidth',2);
                     end        
                 end
                 
@@ -621,14 +619,11 @@ classdef FluenceMapOpt < handle
         
         function plotObjPaper(prob)
             % PLOTOBJPAPER Plot objective function values.
-            
-            myLines = lines;
            
             % Objective function
             figure(1)
             subplot(3,1,1)
-            plot(0:prob.nIter,prob.obj(1:prob.nIter+1),...
-                'Color',[0.5,0.5,0.5],'LineWidth',2)
+            plot(0:prob.nIter,prob.obj(1:prob.nIter+1),'LineWidth',2)
             FluenceMapOpt.adjustAxis(gca)
             
             % Objective terms
@@ -636,16 +631,18 @@ classdef FluenceMapOpt < handle
                 for jj = 1:length(prob.structs{ii}.terms)
                     figure(1)
                     subplot(3,1,ii+1)
-                    plot(0:prob.nIter,prob.structs{ii}.terms{jj}.obj(1:prob.nIter+1),...
-                        'Color',myLines(ii,:),'LineWidth',2);
+                    plot(0:prob.nIter,...
+                        prob.structs{ii}.terms{jj}.obj(1:prob.nIter+1),...
+                        'LineWidth',2);
                     FluenceMapOpt.adjustAxis(gca)
             
                     % Voxels under or over dose constraints
                     if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
                         figure(2), hold on
                         subplot(2,1,2)
-                        plot(0:prob.nIter,prob.structs{ii}.terms{jj}.dPos(1:prob.nIter+1),...
-                            'Color',myLines(ii,:),'LineWidth',2);
+                        plot(0:prob.nIter,...
+                            prob.structs{ii}.terms{jj}.dPos(1:prob.nIter+1),...
+                            'LineWidth',2);
                         FluenceMapOpt.adjustAxis(gca)
                         set(gca,'YTick',52:2:56);
                     end
@@ -654,8 +651,7 @@ classdef FluenceMapOpt < handle
             
             figure(2)
             subplot(2,1,1)
-            plot(1:prob.nIter,prob.wDiff(1:prob.nIter),'Color',[0.5,0.5,0.5],...
-                'LineWidth',2)
+            plot(1:prob.nIter,prob.wDiff(1:prob.nIter),'LineWidth',2)
             FluenceMapOpt.adjustAxis(gca);
         end   
         

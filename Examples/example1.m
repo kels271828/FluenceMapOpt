@@ -31,20 +31,12 @@ for ii = 1:length(doses)
     fprintf('\nCalculating approximate dose\n\n');
     prob.calcBeams();
     fprintf('\nIterations: %d, Time: %.2f\n',prob.nIter,prob.time);
-    filename1 = ['ex1' labels(ii) 'Approx.mat'];
-    prob.saveResults(filename1);
-    
-    % Calculate polished dose
-    fprintf('\nCalculating polished dose\n');
-    prob.calcBeamsPolish(prob.x);
-    fprintf('\nTime: %.2f\n',prob.time);
-    filename2 = ['ex1' labels(ii) 'Polish.mat'];
-    prob.saveResults(filename2);
+    prob.saveResults(['ex1' labels(ii) 'Approx.mat']);
 
     % Calculate approximate dose with continuation
     fprintf('\nCalculating approximate dose with continuation\n\n');
-    prob = calcBeamsContinue(prob,structs,0.9,1.5,1e-1,100,true,false);
+    prob.tol = 1e-1;
+    prob = calcBeamsContinue(prob,0.95,2,1e-2,100,true,false);
     fprintf('\nIterations: %d, Time: %.2f\n',prob.nIter,prob.time);
-    filename3 = ['ex1' labels(ii) 'Continue.mat'];
-    prob.saveResults(filename3);
+    prob.saveResults(['ex1' labels(ii) 'Continue.mat']);
 end

@@ -1,4 +1,4 @@
-function prob = calcBeamsContinue(prob,structs,gamma,sigma,tol,maxIter,...
+function prob = calcBeamsContinue(prob,gamma,sigma,tol,maxIter,...
     print,consolidate)
     % CALCBEAMSCONTINUE Approach inspired by Lu paper.
     
@@ -36,15 +36,19 @@ function prob = calcBeamsContinue(prob,structs,gamma,sigma,tol,maxIter,...
         
         % Update parameters
         for ii = 1:prob.nStructs
+            nVoxels = prob.structs{ii}.nVoxels;
             for jj = 1:prob.structs{ii}.nTerms
-                if ~strcmp(structs{ii}.terms{jj}.type,'unif')
-                    oldWeight = structs{ii}.terms{jj}.weight;
-                    structs{ii}.terms{jj}.weight = sigma*oldWeight;
+                if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                    oldWeight = prob.structs{ii}.terms{jj}.weight;
+                    newWeight = sigma*oldWeight;
+                    prob.structs{ii}.terms{jj}.weight = sigma*oldWeight;
+                    prob.structs{ii}.terms{jj}.step = nVoxels/newWeight;
                 end
             end
         end
+        [prob.A,prob.H,~,~] = prob.getA('full');
         prob.tol = gamma*prob.tol;
-        prob = FluenceMapOpt(structs,'x0',prob.x,'tol',prob.tol);   
+        prob.x0 = prob.x;  
     end
     prob.nIter = kk;
     prob.obj = obj;
