@@ -368,15 +368,12 @@ classdef FluenceMapOpt < handle
             axis square
         end
         
-        function plotDVHPaper(prob,xMat)
+        function plotDVHPaper(prob,xMat,unif)
             % PLOTDVHPAPER Plot dose-volume histogram of solution.
-            nX = size(xMat,2);
             if nargin == 2
-                legendNames = cell(1,nX);
-                for ii = 1:nX
-                    legendNames{ii} = sprintf('x%d',ii);
-                end
-            end 
+                unif = true;
+            end
+            nX = size(xMat,2);
             
             % Compute curves and initialize
             dvhMat = [];
@@ -385,20 +382,26 @@ classdef FluenceMapOpt < handle
                 dvhMat = cat(3,dvhMat,dvh);
             end
             myColors = lines;
-            myColors = myColors([2 3 1],:);
+            if nX == 2
+                myLines = {'--','-'}';
+            else
+                myLines = {'--','-',':'};
+            end            
             
             % Plot dose-volume histograms
             for ii = 1:prob.nStructs
                 figure(), hold on
                 % Plot targets/constraints
                 for jj = 1:length(prob.structs{ii}.terms)
-                    prob.plotConstraints(ii,jj);
+                    if unif || ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                        prob.plotConstraints(ii,jj);
+                    end
                 end
                 % Plot dvh curves
                 for kk = 1:nX
                     if jj == prob.structs{ii}.nTerms
-                        plot(doses,dvhMat(ii,:,kk),'Color',myColors(kk,:),...
-                            'LineWidth',2);
+                        plot(doses,dvhMat(ii,:,kk),myLines{kk},...
+                            'Color',myColors(1,:),'LineWidth',2);
                     end        
                 end
                 

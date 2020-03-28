@@ -1,4 +1,4 @@
-% Figure 14: Dose and beamlets for multiple PTVs and OARs
+% Figure 14: Dose-volume histograms for multiple PTVs and OARs.
 
 clear all; close all; clc;
 
@@ -25,25 +25,35 @@ bladder.name = 'Bladder';
 bladder.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
 
 % Create problem instance
+fprintf('Example 3\n\n')
 structs = {prostate,nodes,rectum,bladder};
 prob = FluenceMapOpt(structs);
+xMat = prob.x0;
+fprintf('\nInitialization\n');
+fprintf('Rectum %% > 50 Gy: %.2f, Bladder %% > 30 Gy: %.2f\n',...
+    prob.getPercent(3,1,prob.x0),prob.getPercent(4,1,prob.x0));
+fprintf('Prostate D95: %.2f, Lymph Nodes D95: %.2f\n',...
+    prob.getPercentile(prob.structs{1}.A*prob.x0,0.95),...
+    prob.getPercentile(prob.structs{2}.A*prob.x0,0.95));
+% Rectum % > 50 Gy: 82.47, Bladder % > 30 Gy: 91.87
+% Prostate D95: 76.96, Lymph Nodes D95: 58.53
+% Time: 0.368328
 
 % Load approximate dose
-load('ex3Results/ex3bApprox.mat')
-prob.x = results.x;
+fprintf('\nApproximate dose\n');
+load(['ex3Results/ex3Approx.mat'])
+x = results.x;
+xMat = [xMat x];
+fprintf('Rectum %% > 50 Gy: %.2f, Bladder %% > 30 Gy: %.2f\n',...
+    prob.getPercent(3,1,x),prob.getPercent(4,1,x));
+fprintf('Prostate D95: %.2f, Lymph Nodes D95: %.2f\n',...
+    prob.getPercentile(prob.structs{1}.A*x,0.95),...
+    prob.getPercentile(prob.structs{2}.A*x,0.95));
+calcTime = results.time;
+fprintf('Time: %.2f\n',calcTime);
+% Rectum % > 50 Gy: 57.33, Bladder % > 30 Gy: 38.14
+% Prostate D95: 76.70, Lymph Nodes D95: 57.51
+% Time: 14.74
 
-% Plot dose
-prob.plotDosePaper()
-
-% Remove extra whitespace
-ax = gca;
-outerpos = ax.OuterPosition;
-ti = ax.TightInset;
-left = outerpos(1) + ti(1);
-bottom = outerpos(2) + ti(2);
-width = outerpos(3) - ti(1) - ti(3);
-height = outerpos(4) - ti(2) - ti(4);
-ax.Position = [left bottom width height];
-
-% Plot beamlets
-prob.plotBeamsPaper()
+% Plot dose-volume histograms
+prob.plotDVHPaper(xMat)

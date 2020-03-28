@@ -25,50 +25,13 @@ bladder.name = 'Bladder';
 bladder.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
 
 % Create problem instance
+fprintf('\nExample3\n')
 structs = {prostate,nodes,rectum,bladder};
 prob = FluenceMapOpt(structs);
 
-% a) Polish initialization
-fprintf('\nExample 3a\n');
-fprintf('\nCalculating polished dose\n');
-prob.calcBeamsPolish(prob.x0);
-prob.saveResults('ex3aPolish.mat');
-fprintf('\nTime: %.2f\n',prob.time);
+% Calculate approximate dose
+fprintf('\nCalculating approximate dose\n\n');
+prob.calcBeams();
+fprintf('\nIterations: %d, Time: %.2f\n\n',prob.nIter,prob.time);
+prob.saveResults('ex3Approx.mat');
 
-% Loop over different methods
-labels = ['b' 'c' 'd' 'e' 'f'];
-for ii = 1:length(labels)
-    fprintf('\nExample 3%s\n',labels(ii));
-    
-    % Calculate approximate dose
-    fprintf('\nCalculating approximate dose\n\n');
-    if ii == 1 % b) Our method
-        prob.calcBeams();               
-    elseif ii == 2 % c) Convex method
-        prob.calcBeamsConvex();     
-    elseif ii == 3 % d) Iterative method
-        prob.tol = 5e-2;
-        prob.calcBeamsIter();       
-    elseif ii == 4 % e) Slack method
-        prob.tol = 1e-3;
-        prob.calcBeamsSlack();      
-    else % f) Continuation
-        prob = calcBeamsContinue(prob,structs,0.9,1.5,1e-1,100,true,false); 
-    end
-    
-    % Approximate dose results
-    if ii == 2
-        fprintf('\nTime: %.2f\n',prob.time);
-    else
-        fprintf('\nIterations: %d, Time: %.2f\n',prob.nIter,prob.time);
-    end
-    filename1 = ['ex3' labels(ii) 'Approx.mat'];
-    prob.saveResults(filename1);
-    
-    % Calculate polished dose
-    fprintf('\nCalculating polished dose\n');
-    prob.calcBeamsPolish(prob.x);
-    fprintf('\nTime: %.2f\n',prob.time);
-    filename2 = ['ex3' labels(ii) 'Polish.mat'];
-    prob.saveResults(filename2);
-end

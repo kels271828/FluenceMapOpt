@@ -1,9 +1,6 @@
 % Figure 12: Dose-volume histograms for prostate tumor with uniform dose
 % target of 81 Gy with various dose-volume constraints on the rectum.
 
-% NOTE: Modified FluenceMapOpt.plotConstraints to dotted line for uniform
-% target dose.
-
 clear all; close all; clc;
 
 % Add data and functions to path
@@ -51,4 +48,4 @@ fprintf('PTV D95: %.2f, %% < 81 Gy: %.2f, %% > 85 Gy: %.2f, Time: %.2f\n\n',...
 % PTV D95: 80.72, % < 81 Gy: 12.53, % > 85 Gy: 0.00, Time: 18.87
 
 % Plot dose-volume histograms
-prob.plotDVHPaper([x0 x1 x1])
+prob.plotDVHPaper([x0 x1],false)
