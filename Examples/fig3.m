@@ -1,6 +1,8 @@
 % Figure 3: Objective function contours of the nonconvex relaxation applied
 % to the example in the introduction. 
 
+% NOTE: Need to change SetAccess of FluenceMapOpt property structs.
+
 clear all; close all; clc;
 
 % Add data and functions to path
@@ -11,24 +13,35 @@ cd(currentFolder);
 
 %% Set up problem
 
-% PTV - tumor voxel 1675228
-tumor.name = 'tumorEx';
-tt1.type = 'unif'; tt1.dose = 81; tt1.weight = 1;
-tumor.terms = {tt1};
+% PTV - prostate voxel 1675228
+prostate.name = 'tumorEx';
+prostate.terms = {struct('type','unif','dose',81,'weight',1)};
 
 % OAR - rectum voxels 1674687 and 1675607
 rectum.name = 'rectumEx';
-rt1.type = 'udvc'; rt1.dose = 20; rt1.percent = 50; rt1.weight = 10;
-rectum.terms = {rt1};
+rectum.terms = {struct('type','udvc','dose',20,'percent',50,'weight',10)};
 
 % Create problem instance
-pars.structs = {tumor,rectum};
-pars.angles = [17,353];
-pars.lambda = 5e-6;
-pars.maxIter = 32;
-pars.xInit = zeros(2,1);
-f = FluenceMapOpt(pars);
+structs = {prostate,rectum};
+prob = FluenceMapOpt(structs,'angles',[17 353],'lambda',5e-6);
 
 %% Plot objective function contours for relaxed problem
 
-plotContourW(f,[-30 20],10);
+for ii = 1:3
+    if ii == 1
+        prob.maxIter = 26;
+        wLim = [-5 20];
+        wStep = 5;
+    elseif ii == 2
+        prob.x0 = zeros(2,1);
+        prob.maxIter = 32;
+        wLim = [-30 20];
+        wStep = 10;
+    else
+        prob.x0 = [0; 2e3];
+        prob.maxIter = 37;
+        wLim = [-30 20];
+        wStep = 10;
+    end
+    plotContourW(prob,wLim,wStep);
+end

@@ -1,0 +1,84 @@
+/Applications/MATLAB_R2019a.app/bin/matlab -nodesktop
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2019 The MathWorks, Inc.
+                   R2019a (9.6.0.1072779) 64-bit (maci64)
+                               March 8, 2019
+
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+>> example2
+
+Example 2
+
+Calculating approximate dose
+
+iter: 0, obj: 4.2484e+01
+iter: 1, obj: 1.0798e+01, yDiff: 1.4702e-01
+iter: 2, obj: 8.2096e+00, yDiff: 7.9077e-02
+iter: 3, obj: 7.1760e+00, yDiff: 5.5288e-02
+iter: 4, obj: 6.6484e+00, yDiff: 4.0097e-02
+iter: 5, obj: 6.3458e+00, yDiff: 3.3446e-02
+iter: 6, obj: 6.1516e+00, yDiff: 2.3738e-02
+iter: 7, obj: 6.0263e+00, yDiff: 2.2006e-02
+iter: 8, obj: 5.9361e+00, yDiff: 1.8946e-02
+iter: 9, obj: 5.8680e+00, yDiff: 1.4646e-02
+iter: 10, obj: 5.8168e+00, yDiff: 1.6133e-02
+iter: 11, obj: 5.7740e+00, yDiff: 1.3981e-02
+iter: 12, obj: 5.7386e+00, yDiff: 1.3108e-02
+iter: 13, obj: 5.7080e+00, yDiff: 1.1141e-02
+iter: 14, obj: 5.6832e+00, yDiff: 1.0004e-02
+iter: 15, obj: 5.6628e+00, yDiff: 9.2998e-03
+iter: 16, obj: 5.6452e+00, yDiff: 8.2879e-03
+iter: 17, obj: 5.6304e+00, yDiff: 7.8363e-03
+iter: 18, obj: 5.6175e+00, yDiff: 7.9060e-03
+iter: 19, obj: 5.6059e+00, yDiff: 6.0980e-03
+iter: 20, obj: 5.5960e+00, yDiff: 6.6979e-03
+iter: 21, obj: 5.5873e+00, yDiff: 4.8931e-03
+iter: 22, obj: 5.5799e+00, yDiff: 5.5344e-03
+iter: 23, obj: 5.5730e+00, yDiff: 4.2662e-03
+iter: 24, obj: 5.5671e+00, yDiff: 5.6838e-03
+iter: 25, obj: 5.5615e+00, yDiff: 5.5839e-03
+iter: 26, obj: 5.5566e+00, yDiff: 3.7423e-03
+iter: 27, obj: 5.5523e+00, yDiff: 4.3993e-03
+iter: 28, obj: 5.5483e+00, yDiff: 5.0576e-03
+iter: 29, obj: 5.5446e+00, yDiff: 4.2272e-03
+iter: 30, obj: 5.5408e+00, yDiff: 4.8171e-03
+iter: 31, obj: 5.5375e+00, yDiff: 4.7484e-03
+iter: 32, obj: 5.5345e+00, yDiff: 2.8379e-03
+iter: 33, obj: 5.5320e+00, yDiff: 2.6244e-03
+iter: 34, obj: 5.5298e+00, yDiff: 3.0007e-03
+iter: 35, obj: 5.5277e+00, yDiff: 2.3737e-03
+iter: 36, obj: 5.5259e+00, yDiff: 2.2296e-03
+iter: 37, obj: 5.5243e+00, yDiff: 2.1043e-03
+iter: 38, obj: 5.5229e+00, yDiff: 1.9930e-03
+iter: 39, obj: 5.5216e+00, yDiff: 1.8937e-03
+iter: 40, obj: 5.5204e+00, yDiff: 4.8703e-03
+iter: 41, obj: 5.5187e+00, yDiff: 2.1629e-03
+iter: 42, obj: 5.5173e+00, yDiff: 2.6141e-03
+iter: 43, obj: 5.5160e+00, yDiff: 1.8278e-03
+iter: 44, obj: 5.5149e+00, yDiff: 1.6945e-03
+iter: 45, obj: 5.5140e+00, yDiff: 5.1241e-03
+iter: 46, obj: 5.5128e+00, yDiff: 1.8634e-03
+iter: 47, obj: 5.5118e+00, yDiff: 1.6680e-03
+iter: 48, obj: 5.5110e+00, yDiff: 1.5338e-03
+iter: 49, obj: 5.5103e+00, yDiff: 3.7676e-03
+iter: 50, obj: 5.5093e+00, yDiff: 1.7441e-03
+iter: 51, obj: 5.5086e+00, yDiff: 3.6593e-03
+iter: 52, obj: 5.5077e+00, yDiff: 1.6710e-03
+iter: 53, obj: 5.5070e+00, yDiff: 2.0620e-03
+iter: 54, obj: 5.5061e+00, yDiff: 4.3340e-03
+iter: 55, obj: 5.5047e+00, yDiff: 1.8287e-03
+iter: 56, obj: 5.5037e+00, yDiff: 1.5424e-03
+iter: 57, obj: 5.5029e+00, yDiff: 1.3668e-03
+iter: 58, obj: 5.5023e+00, yDiff: 1.2439e-03
+iter: 59, obj: 5.5018e+00, yDiff: 1.1501e-03
+iter: 60, obj: 5.5013e+00, yDiff: 1.5733e-03
+iter: 61, obj: 5.5008e+00, yDiff: 1.0831e-03
+iter: 62, obj: 5.5004e+00, yDiff: 1.0239e-03
+iter: 63, obj: 5.5000e+00, yDiff: 9.7281e-04
+
+Iterations: 63, Time: 18.87
+>> 

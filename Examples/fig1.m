@@ -7,6 +7,8 @@
 % voxel 1675228, with a 20 Gy / 50% dose-volume constraint on rectum voxels
 % 1674687 and 1675607.
 
+% NOTE: Need to change SetAccess of FluenceMapOpt properties D and mask.
+
 clear all; close all; clc;
 
 % Add data and functions to path
@@ -43,23 +45,34 @@ voxels = [1675228; 1674687; 1675607];
 % Beam angle 16 degrees, beamlet at index 86
 % Beam angle 352 degrees, beamlet at index 85
 
-%% Plot dose on slice 50
+%% Set up problem
 
-% Create problem instance
-f = FluenceMapOpt();
+% PTV - prostate
+prostate.name = 'PTV_68';
+prostate.terms = {struct('type','unif','dose',80,'weight',1)};
+
+% OAR - rectum
+rectum.name = 'Rectum';
+rectum.terms = {struct('type','udvc','dose',20,'percent',50,'weight',1)};
+
+% Creat problem instance
+structs = {prostate,rectum};
+prob = FluenceMapOpt(structs);
+
+%% Plot dose on slice 50
 
 % Subsets of dose matrix
 load('Gantry16_Couch0_D.mat');
 temp = D(:,86);
 A = D(voxels,86);
 load('Gantry352_Couch0_D.mat');
-f.D = [temp D(:,85)];
+prob.D = [temp D(:,85)];
 A = [A D(voxels,85)];
 
 % Add voxels to contour mask
 myVoxels = zeros(184,184,90);
 myVoxels(voxels) = 1;
-f.mask = [myVoxels f.mask(:)'];
+prob.mask = [myVoxels prob.mask(:)'];
 
 % Beamlet intensities at global minimum
 lambda = 5e-6;
@@ -67,10 +80,10 @@ B1 = (20*lambda*A(3,1) + (81*A(3,2) - 20*A(1,2))*(A(1,1)*A(3,2) - ...
     A(1,2)*A(3,1)))/((A(1,1)*A(3,2) - A(1,2)*A(3,1))^2 +...
     lambda*(A(3,1)^2 + A(3,2)^2));
 B2 = (20 - A(3,1)*B1)/A(3,2);
-f.x = [full(B1); B2];
+prob.x = [full(B1); B2];
 
 % Plot dose
-f.plotDosePaper();
+prob.plotDosePaper();
 
 % Remove extra whitespace
 ax = gca;

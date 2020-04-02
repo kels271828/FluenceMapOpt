@@ -1,4 +1,4 @@
-% Figure 6: PTV Dose-Volume Histograms
+% Figure 6: OAR Dose-Volume Histograms
 
 clear all; close all; clc;
 
@@ -8,36 +8,35 @@ cd ..
 addpath(genpath(pwd));
 cd(currentFolder);
 
-%% Idealized uniform PTV dose of 81 Gy
+%% OAR doesn't meet dose-volume constraint
 
-myLines = lines;
+% PTV - prostate
+prostate.name = 'PTV_68';
+prostate.terms = {struct('type','unif','dose',81,'weight',1)};
 
-% Plot dvh
-plot([81 81],[0 100],':','Color',[0.4 0.4 0.4],'LineWidth',3); hold on
-plot([0 81],[100 100],'Color',myLines(1,:),'LineWidth',3);
-plot([81 100],[0 0],'Color',myLines(1,:),'LineWidth',3)
-plot(81,100,'o','MarkerEdgeColor',myLines(1,:),'MarkerFaceColor',myLines(1,:),'MarkerSize',10)
-plot(81,0,'o','MarkerEdgeColor',myLines(1,:),'MarkerFaceColor',[1 1 1],'MarkerSize',10)
-
-% Annotations
-ax = gca;
-ax.XLim = [0 100];
-ax.YLim = [0 100];
-ax.XTick = 0:20:100;
-ax.YTick = 0:20:100;
-ax.XTickLabel = {};
-ax.YTickLabel = {};
-ax.LineWidth = 2;
-axis square
-
-%% Initialization for uniform PTV dose of 81 Gy
-
-% PTV
-tumor.name = 'PTV_68';
-tt1.type = 'unif'; tt1.dose = 81; tt1.weight = 1; 
-tumor.terms = {tt1};
+% OAR - rectum
+rectum.name = 'Rectum';
+rectum.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
 
 % Calculate beamlets
-pars.structs = {tumor};
-f = FluenceMapOpt(pars);
-f.plotDVHPaper();
+structs = {prostate,rectum};
+prob1 = FluenceMapOpt(structs);
+prob1.plotDVHPaper(prob1.x0);
+
+% Voxels over 50 Gy
+fprintf('Percent voxels > 50 Gy: %.2f\n',prob1.getPercent(2,1))
+
+%% OAR does meet dose-volume constraint
+
+% Adjust dose-volume constraint
+rectum.terms = {struct('type','udvc','dose',45,'percent',45,'weight',1)};
+structs = {prostate,rectum};
+prob2 = FluenceMapOpt(structs);
+
+% Calculate beamlets
+prob2.calcBeams();
+prob1.plotDVHPaper(prob2.x);
+
+% Voxels over 50 Gy
+prob1.x = prob2.x;
+fprintf('Percent voxels > 50 Gy: %.2f\n',prob1.getPercent(2,1))

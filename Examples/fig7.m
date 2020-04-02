@@ -1,47 +1,42 @@
-% Figure 6: PTV Dose-Volume Histograms
+% Figure 7: Dose and beamlets for prostate tumor with uniform dose target
+% of 81 Gy with a 50%, 50 Gy dose-volume constraint on the rectum.
 
 clear all; close all; clc;
 
-% add data to path
+% Add data and functions to path
 currentFolder = pwd;
 cd ..
 addpath(genpath(pwd));
 cd(currentFolder);
 
-%% OAR doesn't meet dose-volume constraint
+% PTV - prostate
+prostate.name = 'PTV_68';
+prostate.terms = {struct('type','unif','dose',81,'weight',1)};
 
-% PTV
-tumor.name = 'PTV_68';
-tt1.type = 'unif'; tt1.dose = 81; tt1.weight = 1; 
-tumor.terms = {tt1};
-
-% OAR
+% OAR - rectum
 rectum.name = 'Rectum';
-rt1.type = 'udvc'; rt1.dose = 50; rt1.percent = 50; rt1.weight = 1;
-rectum.terms = {rt1};
+rectum.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
 
-% Calculate beamlets
-pars.structs = {tumor,rectum};
-f = FluenceMapOpt(pars);
-f.plotDVHPaper();
+% Create problem instance
+structs = {prostate,rectum};
+prob = FluenceMapOpt(structs);
 
-% Voxels over 50 Gy
-100*sum(f.structs{2}.A*f.x > 50)/f.structs{2}.nVoxels
+% Load approximate dose
+load('ex1Results/ex1aApprox.mat')
+prob.x = results.x;
 
-%% OAR does meet dose-volume constraint
+% Plot dose
+prob.plotDosePaper()
 
-% Adjust dose-volume constraint
-rt1.dose = 45; rt1.percent = 45;
-rectum.terms = {rt1};
-pars.structs = {tumor,rectum};
-f = FluenceMapOpt(pars);
+% Remove extra whitespace
+ax = gca;
+outerpos = ax.OuterPosition;
+ti = ax.TightInset;
+left = outerpos(1) + ti(1);
+bottom = outerpos(2) + ti(2);
+width = outerpos(3) - ti(1) - ti(3);
+height = outerpos(4) - ti(2) - ti(4);
+ax.Position = [left bottom width height];
 
-% Calculate beamlets
-f.calcDose();
-f.structs{2}.terms{1}.dose = 50;
-f.structs{2}.terms{1}.percent = 50;
-f.xInit = f.x;
-f.plotDVHPaper();
-
-% Voxels over 50 Gy
-100*sum(f.structs{2}.A*f.x > 50)/f.structs{2}.nVoxels
+% Plot beamlets
+prob.plotBeamsPaper()

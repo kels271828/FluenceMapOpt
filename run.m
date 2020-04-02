@@ -17,38 +17,26 @@ addpath(genpath('minConf'));
 % 
 %   type: string 'unif', 'ldvc', or 'udvc'
 %   dose: dose in Gy
-%   percent: at least (ldvc) or at most (udvc) p% receives at least d Gy
+%   percent: no more than p% receives more than (udvc) or less than (ldvc)
+%       specified dose value
 %   weight: weight in objective function
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% To run the default problem, there is no need to include the parameter
-% structure 'pars'; just use the command f = FluenceMapOpt(). Below we set
-% up the default problem by explicitly defining the input parameters. 
-
-% Planning target volume (prostate)
+% PTV - prostate
 ptv.name = 'PTV_68';
-pt1.type = 'unif'; pt1.dose = 81; pt1.weight = 1;
-ptv.terms = {pt1};
+ptv.terms = {struct('type','unif','dose',81,'weight',1)};
 
-% Organ-at-risk (rectum)
+% OAR - rectum
 oar.name = 'Rectum';
-rt1.type = 'udvc'; rt1.dose = 50; rt1.percent = 50; rt1.weight = 1;
-oar.terms = {rt1};
-
-% Problem parameters
-pars.structs = {ptv,oar};
-pars.angles = 0:52:358;
-pars.lambda = 1e-8;
-pars.maxIter = 500;
-pars.overlap = false;
-pars.tol = 1e-3;
+oar.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
 
 % Create problem instance
-f = FluenceMapOpt(pars);
+structs = {ptv,oar};
+f = FluenceMapOpt(structs);
 
 % Calculate beamlet intensities
-f.calcDose();
+f.calcBeams();
 
 % Plot objective function
 f.plotObj();
@@ -57,7 +45,7 @@ f.plotObj();
 f.plotDVH();
 
 % Plot beamlet intensities
-f.plotBeamlets();
+f.plotBeams();
 
 % Plot dose
 f.plotDose();

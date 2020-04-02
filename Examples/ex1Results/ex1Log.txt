@@ -1,0 +1,189 @@
+/Applications/MATLAB_R2019a.app/bin/matlab -nodesktop
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2019 The MathWorks, Inc.
+                   R2019a (9.6.0.1072779) 64-bit (maci64)
+                               March 8, 2019
+
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+>> example1
+
+Example 1a
+
+Calculating approximate dose
+
+iter: 0, obj: 5.2899e+00
+iter: 1, obj: 5.0193e+00, wDiff: 1.2910e-02
+iter: 2, obj: 4.9572e+00, wDiff: 7.2218e-03
+iter: 3, obj: 4.9311e+00, wDiff: 4.8192e-03
+iter: 4, obj: 4.9192e+00, wDiff: 3.1349e-03
+iter: 5, obj: 4.9121e+00, wDiff: 1.9558e-03
+iter: 6, obj: 4.9072e+00, wDiff: 2.4837e-03
+iter: 7, obj: 4.9031e+00, wDiff: 1.5097e-03
+iter: 8, obj: 4.9001e+00, wDiff: 1.3254e-03
+iter: 9, obj: 4.8976e+00, wDiff: 1.2012e-03
+iter: 10, obj: 4.8956e+00, wDiff: 1.0759e-03
+iter: 11, obj: 4.8939e+00, wDiff: 9.8337e-04
+
+Iterations: 11, Time: 2.25
+
+Calculating approximate dose with continuation
+
+iter: 0, obj: 5.2899e+00, oDiff: 5.4392e+00
+iter: 1, obj: 4.9798e+00, oDiff: 3.1487e+00
+iter: 2, obj: 4.9528e+00, oDiff: 2.0818e+00
+iter: 3, obj: 4.9568e+00, oDiff: 1.6830e+00
+iter: 4, obj: 4.9668e+00, oDiff: 1.3399e+00
+iter: 5, obj: 4.9807e+00, oDiff: 1.1040e+00
+iter: 6, obj: 4.9996e+00, oDiff: 9.1309e-01
+iter: 7, obj: 5.0226e+00, oDiff: 7.5365e-01
+iter: 8, obj: 5.0514e+00, oDiff: 6.2020e-01
+iter: 9, obj: 5.0638e+00, oDiff: 4.6706e-01
+iter: 10, obj: 5.0368e+00, oDiff: 2.9534e-01
+iter: 11, obj: 5.0093e+00, oDiff: 1.6202e-01
+iter: 12, obj: 4.9955e+00, oDiff: 9.1646e-02
+iter: 13, obj: 4.9880e+00, oDiff: 4.9626e-02
+iter: 14, obj: 4.9837e+00, oDiff: 2.5091e-02
+iter: 15, obj: 4.9819e+00, oDiff: 1.2887e-02
+iter: 16, obj: 4.9810e+00, oDiff: 6.4304e-03
+
+Iterations: 16, Time: 36.20
+
+Example 1b
+
+Calculating approximate dose
+
+iter: 0, obj: 1.1604e+02
+iter: 1, obj: 1.3450e+01, wDiff: 1.1245e-01
+iter: 2, obj: 9.3282e+00, wDiff: 5.2796e-02
+iter: 3, obj: 7.8748e+00, wDiff: 3.0130e-02
+iter: 4, obj: 7.1791e+00, wDiff: 2.4210e-02
+iter: 5, obj: 6.7682e+00, wDiff: 1.8152e-02
+iter: 6, obj: 6.5031e+00, wDiff: 1.5381e-02
+iter: 7, obj: 6.3264e+00, wDiff: 1.1437e-02
+iter: 8, obj: 6.2095e+00, wDiff: 9.7480e-03
+iter: 9, obj: 6.1249e+00, wDiff: 8.6755e-03
+iter: 10, obj: 6.0598e+00, wDiff: 6.0137e-03
+iter: 11, obj: 6.0103e+00, wDiff: 8.5461e-03
+iter: 12, obj: 5.9650e+00, wDiff: 6.9017e-03
+iter: 13, obj: 5.9270e+00, wDiff: 6.3548e-03
+iter: 14, obj: 5.8956e+00, wDiff: 4.1960e-03
+iter: 15, obj: 5.8704e+00, wDiff: 6.9202e-03
+iter: 16, obj: 5.8439e+00, wDiff: 6.7874e-03
+iter: 17, obj: 5.8195e+00, wDiff: 3.6391e-03
+iter: 18, obj: 5.8022e+00, wDiff: 4.7875e-03
+iter: 19, obj: 5.7877e+00, wDiff: 2.8654e-03
+iter: 20, obj: 5.7755e+00, wDiff: 5.6277e-03
+iter: 21, obj: 5.7628e+00, wDiff: 2.6617e-03
+iter: 22, obj: 5.7525e+00, wDiff: 5.3335e-03
+iter: 23, obj: 5.7411e+00, wDiff: 4.1282e-03
+iter: 24, obj: 5.7310e+00, wDiff: 4.0543e-03
+iter: 25, obj: 5.7213e+00, wDiff: 2.3277e-03
+iter: 26, obj: 5.7137e+00, wDiff: 3.6713e-03
+iter: 27, obj: 5.7062e+00, wDiff: 3.5968e-03
+iter: 28, obj: 5.6995e+00, wDiff: 1.9374e-03
+iter: 29, obj: 5.6943e+00, wDiff: 3.5701e-03
+iter: 30, obj: 5.6896e+00, wDiff: 1.6389e-03
+iter: 31, obj: 5.6857e+00, wDiff: 1.5156e-03
+iter: 32, obj: 5.6823e+00, wDiff: 1.4196e-03
+iter: 33, obj: 5.6792e+00, wDiff: 3.6585e-03
+iter: 34, obj: 5.6750e+00, wDiff: 1.5315e-03
+iter: 35, obj: 5.6715e+00, wDiff: 3.7413e-03
+iter: 36, obj: 5.6677e+00, wDiff: 1.4455e-03
+iter: 37, obj: 5.6644e+00, wDiff: 3.8068e-03
+iter: 38, obj: 5.6604e+00, wDiff: 1.4892e-03
+iter: 39, obj: 5.6574e+00, wDiff: 1.3168e-03
+iter: 40, obj: 5.6549e+00, wDiff: 1.1931e-03
+iter: 41, obj: 5.6528e+00, wDiff: 1.0857e-03
+iter: 42, obj: 5.6511e+00, wDiff: 9.9383e-04
+
+Iterations: 42, Time: 6.38
+
+Calculating approximate dose with continuation
+
+iter: 0, obj: 1.1604e+02, oDiff: 3.4425e+01
+iter: 1, obj: 8.4497e+00, oDiff: 1.4131e+01
+iter: 2, obj: 7.8709e+00, oDiff: 8.1024e+00
+iter: 3, obj: 7.7885e+00, oDiff: 6.2351e+00
+iter: 4, obj: 7.8475e+00, oDiff: 4.9415e+00
+iter: 5, obj: 7.9783e+00, oDiff: 4.1175e+00
+iter: 6, obj: 7.6668e+00, oDiff: 2.7378e+00
+iter: 7, obj: 7.6447e+00, oDiff: 2.1191e+00
+iter: 8, obj: 7.5283e+00, oDiff: 1.5289e+00
+iter: 9, obj: 7.4330e+00, oDiff: 1.0779e+00
+iter: 10, obj: 7.3129e+00, oDiff: 6.4229e-01
+iter: 11, obj: 7.2352e+00, oDiff: 3.3907e-01
+iter: 12, obj: 7.1961e+00, oDiff: 1.7025e-01
+iter: 13, obj: 7.1742e+00, oDiff: 7.9221e-02
+iter: 14, obj: 7.1636e+00, oDiff: 3.6930e-02
+iter: 15, obj: 7.1571e+00, oDiff: 1.6391e-02
+iter: 16, obj: 7.1530e+00, oDiff: 7.2307e-03
+
+Iterations: 16, Time: 57.92
+
+Example 1c
+
+Calculating approximate dose
+
+iter: 0, obj: 7.2572e+02
+iter: 1, obj: 3.9667e+01, wDiff: 2.5071e-01
+iter: 2, obj: 2.5606e+01, wDiff: 1.0283e-01
+iter: 3, obj: 2.2711e+01, wDiff: 4.1173e-02
+iter: 4, obj: 2.1660e+01, wDiff: 3.4358e-02
+iter: 5, obj: 2.1196e+01, wDiff: 2.2458e-02
+iter: 6, obj: 2.0988e+01, wDiff: 2.5069e-02
+iter: 7, obj: 2.0841e+01, wDiff: 2.3654e-02
+iter: 8, obj: 2.0725e+01, wDiff: 2.2731e-02
+iter: 9, obj: 2.0641e+01, wDiff: 1.6272e-02
+iter: 10, obj: 2.0581e+01, wDiff: 1.5742e-02
+iter: 11, obj: 2.0539e+01, wDiff: 1.5534e-02
+iter: 12, obj: 2.0501e+01, wDiff: 4.4195e-03
+iter: 13, obj: 2.0474e+01, wDiff: 2.0650e-02
+iter: 14, obj: 2.0441e+01, wDiff: 3.9150e-03
+iter: 15, obj: 2.0424e+01, wDiff: 3.0327e-03
+iter: 16, obj: 2.0412e+01, wDiff: 2.5865e-03
+iter: 17, obj: 2.0402e+01, wDiff: 1.4069e-02
+iter: 18, obj: 2.0387e+01, wDiff: 1.4167e-02
+iter: 19, obj: 2.0365e+01, wDiff: 1.4226e-02
+iter: 20, obj: 2.0343e+01, wDiff: 3.2140e-03
+iter: 21, obj: 2.0331e+01, wDiff: 1.4209e-02
+iter: 22, obj: 2.0320e+01, wDiff: 2.2629e-03
+iter: 23, obj: 2.0315e+01, wDiff: 1.5798e-03
+iter: 24, obj: 2.0312e+01, wDiff: 1.2855e-03
+iter: 25, obj: 2.0309e+01, wDiff: 1.3778e-02
+iter: 26, obj: 2.0300e+01, wDiff: 1.9436e-03
+iter: 27, obj: 2.0296e+01, wDiff: 1.3687e-03
+iter: 28, obj: 2.0294e+01, wDiff: 1.1347e-03
+iter: 29, obj: 2.0292e+01, wDiff: 1.0110e-03
+iter: 30, obj: 2.0290e+01, wDiff: 9.4045e-04
+
+Iterations: 30, Time: 4.21
+
+Calculating approximate dose with continuation
+
+iter: 0, obj: 7.2572e+02, oDiff: 6.7521e+01
+iter: 1, obj: 2.2073e+01, oDiff: 2.0897e+01
+iter: 2, obj: 2.5963e+01, oDiff: 1.6992e+01
+iter: 3, obj: 2.9388e+01, oDiff: 1.3093e+01
+iter: 4, obj: 3.0999e+01, oDiff: 9.2812e+00
+iter: 5, obj: 3.5219e+01, oDiff: 7.9087e+00
+iter: 6, obj: 3.8037e+01, oDiff: 5.8497e+00
+iter: 7, obj: 3.5700e+01, oDiff: 3.3882e+00
+iter: 8, obj: 3.8092e+01, oDiff: 2.9367e+00
+iter: 9, obj: 3.8491e+01, oDiff: 1.9762e+00
+iter: 10, obj: 3.9894e+01, oDiff: 1.7279e+00
+iter: 11, obj: 4.1080e+01, oDiff: 1.3903e+00
+iter: 12, obj: 4.1831e+01, oDiff: 9.5437e-01
+iter: 13, obj: 4.2185e+01, oDiff: 5.6081e-01
+iter: 14, obj: 4.2379e+01, oDiff: 3.2212e-01
+iter: 15, obj: 4.2163e+01, oDiff: 8.6835e-02
+iter: 16, obj: 4.2233e+01, oDiff: 4.6711e-02
+iter: 17, obj: 4.2268e+01, oDiff: 2.4823e-02
+iter: 18, obj: 4.2285e+01, oDiff: 1.3128e-02
+iter: 19, obj: 4.2292e+01, oDiff: 6.7013e-03
+
+Iterations: 19, Time: 312.69
+>> 
