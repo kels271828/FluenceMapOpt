@@ -1,0 +1,69 @@
+/Applications/MATLAB_R2019a.app/bin/matlab -nodesktop
+
+                                                 < M A T L A B (R) >
+                                       Copyright 1984-2019 The MathWorks, Inc.
+                                        R2019a (9.6.0.1072779) 64-bit (maci64)
+                                                    March 8, 2019
+
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+>> example3
+
+Example3
+
+Calculating approximate dose
+
+iter: 0, obj: 7.1792e+01
+iter: 1, obj: 1.7003e+01, wDiff: 4.1542e-02
+iter: 2, obj: 1.4336e+01, wDiff: 1.6731e-02
+iter: 3, obj: 1.3452e+01, wDiff: 1.1778e-02
+iter: 4, obj: 1.3002e+01, wDiff: 8.8607e-03
+iter: 5, obj: 1.2727e+01, wDiff: 7.2456e-03
+iter: 6, obj: 1.2539e+01, wDiff: 6.0869e-03
+iter: 7, obj: 1.2404e+01, wDiff: 4.5721e-03
+iter: 8, obj: 1.2305e+01, wDiff: 4.2780e-03
+iter: 9, obj: 1.2224e+01, wDiff: 4.2755e-03
+iter: 10, obj: 1.2156e+01, wDiff: 3.9600e-03
+iter: 11, obj: 1.2095e+01, wDiff: 3.8684e-03
+iter: 12, obj: 1.2044e+01, wDiff: 3.1513e-03
+iter: 13, obj: 1.2000e+01, wDiff: 2.6687e-03
+iter: 14, obj: 1.1961e+01, wDiff: 2.3953e-03
+iter: 15, obj: 1.1928e+01, wDiff: 3.0551e-03
+iter: 16, obj: 1.1898e+01, wDiff: 2.9083e-03
+iter: 17, obj: 1.1871e+01, wDiff: 2.6865e-03
+iter: 18, obj: 1.1848e+01, wDiff: 1.9518e-03
+iter: 19, obj: 1.1828e+01, wDiff: 2.4156e-03
+iter: 20, obj: 1.1808e+01, wDiff: 1.8462e-03
+iter: 21, obj: 1.1790e+01, wDiff: 1.8047e-03
+iter: 22, obj: 1.1774e+01, wDiff: 2.1140e-03
+iter: 23, obj: 1.1759e+01, wDiff: 2.1291e-03
+iter: 24, obj: 1.1745e+01, wDiff: 1.8442e-03
+iter: 25, obj: 1.1732e+01, wDiff: 1.9565e-03
+iter: 26, obj: 1.1719e+01, wDiff: 2.1032e-03
+iter: 27, obj: 1.1707e+01, wDiff: 1.4251e-03
+iter: 28, obj: 1.1697e+01, wDiff: 2.0391e-03
+iter: 29, obj: 1.1687e+01, wDiff: 1.7216e-03
+iter: 30, obj: 1.1677e+01, wDiff: 1.3646e-03
+iter: 31, obj: 1.1669e+01, wDiff: 1.6732e-03
+iter: 32, obj: 1.1661e+01, wDiff: 1.6562e-03
+iter: 33, obj: 1.1653e+01, wDiff: 1.5608e-03
+iter: 34, obj: 1.1647e+01, wDiff: 1.0973e-03
+iter: 35, obj: 1.1640e+01, wDiff: 1.3811e-03
+iter: 36, obj: 1.1635e+01, wDiff: 1.4849e-03
+iter: 37, obj: 1.1629e+01, wDiff: 1.1956e-03
+iter: 38, obj: 1.1623e+01, wDiff: 1.5848e-03
+iter: 39, obj: 1.1618e+01, wDiff: 1.0890e-03
+iter: 40, obj: 1.1612e+01, wDiff: 1.4056e-03
+iter: 41, obj: 1.1607e+01, wDiff: 1.4928e-03
+iter: 42, obj: 1.1602e+01, wDiff: 1.4070e-03
+iter: 43, obj: 1.1597e+01, wDiff: 1.7723e-03
+iter: 44, obj: 1.1592e+01, wDiff: 1.4492e-03
+iter: 45, obj: 1.1587e+01, wDiff: 1.4986e-03
+iter: 46, obj: 1.1582e+01, wDiff: 1.3062e-03
+iter: 47, obj: 1.1578e+01, wDiff: 1.2804e-03
+iter: 48, obj: 1.1574e+01, wDiff: 8.3433e-04
+
+Iterations: 48, Time: 14.74
+>> 
