@@ -1,11 +1,6 @@
 % Example for setting up problem with FluenceMapOpt
 clear all; close all; clc;
 
-% Add path to data, CT images, and solver
-addpath(genpath('PROSTATE'));
-addpath(genpath('Prostate_Dicom'));
-addpath(genpath('minConf'));
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % For each organ included in the plan, create a structure containing the
 % following fields:

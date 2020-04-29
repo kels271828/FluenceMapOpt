@@ -1181,7 +1181,7 @@ classdef FluenceMapOpt < handle
             % GETD Get full beamlet-to-voxel matrix.
             temp = [];
             for ii = angles
-                load(['Gantry' int2str(ii) '_Couch0_D.mat']);
+                load(['PROSTATE/Gantry' int2str(ii) '_Couch0_D.mat']);
                 temp = [temp D];
             end
             D = temp;
@@ -1193,7 +1193,7 @@ classdef FluenceMapOpt < handle
             nDVC = 0;
             vPrev = [];
             for ii = 1:nStructs
-                load([structs{ii}.name '_VOILIST.mat']);
+                load(['PROSTATE/' structs{ii}.name '_VOILIST.mat']);
                 if ~overlap
                     [v,vPrev] = FluenceMapOpt.removeOverlap(v,vPrev); 
                 end
@@ -1244,14 +1244,14 @@ classdef FluenceMapOpt < handle
             % GETMASKSTRUCT Get body structure contours for all organs.
             vPrev = [];
             for ii = 1:length(names)
-               load([names{ii} '_VOILIST.mat']);
+               load(['PROSTATE/' names{ii} '_VOILIST.mat']);
                if ~overlap
                    [v,vPrev] = FluenceMapOpt.removeOverlap(v,vPrev); 
                end
                mask{ii} = FluenceMapOpt.getMask(v);
             end
             if ~any(strcmp(names,'BODY'))
-                load('BODY_VOILIST.mat');
+                load('PROSTATE/BODY_VOILIST.mat');
                 mask{ii+1} = FluenceMapOpt.getMask(v);
             end
         end
@@ -1305,7 +1305,7 @@ classdef FluenceMapOpt < handle
         
         function [idx,nX,nY] = getBeamCoords(angle)
             % GETBEAMCOORDS Get beamlet coordinates.
-            load(['Gantry' int2str(angle) '_Couch0_BEAMINFO.mat']);
+            load(['PROSTATE/Gantry' int2str(angle) '_Couch0_BEAMINFO.mat']);
             xIdx = x - min(x) + 1;
             yIdx = y - min(y) + 1;
             nX = max(xIdx);
