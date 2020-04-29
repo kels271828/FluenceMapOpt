@@ -33,19 +33,19 @@ oar.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
 
 % Create problem instance
 structs = {ptv,oar};
-f = FluenceMapOpt(structs);
+prob = FluenceMapOpt(structs);
 
 % Calculate beamlet intensities
-f.calcBeams();
+prob.calcBeams();
 
 % Plot objective function
-f.plotObj();
+prob.plotObj();
 
 % Plot dose-volume histogram
-f.plotDVH();
+prob.plotDVH();
 
 % Plot beamlet intensities
-f.plotBeams();
+prob.plotBeams();
 
 % Plot dose
-f.plotDose();
+prob.plotDose();

@@ -120,6 +120,30 @@ classdef FluenceMapOpt < handle
             prob.x = prob.x0;
         end
         
+        function updateStructs(prob,structs,x0)
+            % UPDATESTRUCTS Update structure weights, doses, or percents.
+            if nargin == 1
+                error('Not enough input arguments.')
+            end
+            if ~iscell(structs)
+                error('Invalid input for `structs`.')
+            end
+            for ii = 1:prob.nStructs
+                prob.structs{ii}.terms = FluenceMapOpt.getTermVars(...
+                    structs{ii}.terms,prob.structs{ii}.nTerms,...
+                    prob.structs{ii}.nVoxels);
+            end
+            [prob.A,prob.H,~,~] = prob.getA('full');
+            [prob.Au,prob.Hu,~,~] = prob.getA('unif');
+            prob.du = prob.getd('unif');
+            if nargin < 3
+                prob.x0 = prob.projX('unif');
+            else
+                prob.x0 = x0;
+            end
+            prob.x = prob.x0;
+        end
+        
         function calcBeams(prob,print)
             % CALCBEAMLETS Calculate beamlet intensities.
             if nargin == 1
