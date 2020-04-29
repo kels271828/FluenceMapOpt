@@ -42,6 +42,10 @@ classdef FluenceMapOpt < handle
         nDVC                  % Number of dose-volume constraints
         nAngles               % Number of angles
         nBeamlets             % Number of beamlets
+        obj                   % Objective function values
+        wDiff                 % Convergence criteria
+        nIter                 % Number of iterations used
+        time                  % Time to compute solution (seconds)
     end
     
     properties (Access = private)
@@ -64,10 +68,6 @@ classdef FluenceMapOpt < handle
     properties
         x0              % Initial beamlet intensities
         x               % Final beamlet intensities
-        obj             % Objective function values
-        wDiff           % Convergence criteria
-        nIter           % Number of iterations used
-        time            % Time to compute solution (seconds)
         tol = 1e-3;     % Stopping tolerance
         maxIter = 1000; % Maximum number of iterations
     end
