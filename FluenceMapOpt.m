@@ -1150,6 +1150,14 @@ classdef FluenceMapOpt < handle
             hold off
         end
         
+        function dose = getDose(prob,ii,x)
+            % GETDOSE Get total dose to structure.
+            if nargin == 2
+                x = prob.x;
+            end
+            dose = sum(prob.structs{ii}.A*x);
+        end
+                   
         function p = getPercent(prob,ii,jj,x)
             % GETPERCENT Get % of voxels violating dose-volume constraint.
             if nargin == 3
@@ -1163,6 +1171,17 @@ classdef FluenceMapOpt < handle
             else
                 p = 100*sum(Ax < d)/n;
             end
+        end
+        
+        function doseP = getPercentile(prob,ii,p,x)
+            % GETPERCENTILE Get dose at pth percentile.
+            if nargin == 3
+                x = prob.x;
+            end
+            dose = prob.structs{ii}.A*x;
+            idx = floor((1-p)*length(dose));
+            dose_sort = sort(dose);
+            doseP = dose_sort(idx);
         end
         
         function area = getArea(prob,ii,x)
@@ -1311,13 +1330,6 @@ classdef FluenceMapOpt < handle
             nX = max(xIdx);
             nY = max(yIdx);
             idx = sub2ind([nX,nY],xIdx,yIdx);
-        end
-
-        function doseP = getPercentile(dose,p)
-            % GETPERCENTILE Get dose at pth percentile.
-            idx = floor((1-p)*length(dose));
-            dose_sort = sort(dose);
-            doseP = dose_sort(idx);
         end
         
         function adjustAxis(g)
