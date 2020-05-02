@@ -1158,13 +1158,13 @@ classdef FluenceMapOpt < handle
             dose = sum(prob.structs{ii}.A*x);
         end
                    
-        function p = getPercent(prob,ii,jj,x)
+        function p = getPercent(prob,ii,jj,d,x)
             % GETPERCENT Get % of voxels violating dose-volume constraint.
-            if nargin == 3
+            if nargin == 4
                 x = prob.x;
             end
             Ax = prob.structs{ii}.A*x;
-            d = prob.structs{ii}.terms{jj}.dose;
+            %d = prob.structs{ii}.terms{jj}.dose;
             n = prob.structs{ii}.nVoxels;
             if strcmp(prob.structs{ii}.terms{jj}.type,'udvc')
                 p = 100*sum(Ax > d)/n;
