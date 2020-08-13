@@ -1,5 +1,5 @@
 % Figure 7: Dose and beamlets for prostate tumor with uniform dose target
-% of 81 Gy with a 50%, 50 Gy dose-volume constraint on the rectum.
+% of 81 Gy with a 30%, 30 Gy dose-volume constraint on the rectum.
 
 clear all; close all; clc;
 
@@ -15,14 +15,14 @@ prostate.terms = {struct('type','unif','dose',81,'weight',1)};
 
 % OAR - rectum
 rectum.name = 'Rectum';
-rectum.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
+rectum.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
 
 % Create problem instance
 structs = {prostate,rectum};
 prob = FluenceMapOpt(structs);
 
 % Load approximate dose
-load('ex1Results/ex1aApprox.mat')
+load('ex1Results/ex1Approx.mat')
 prob.x = results.x;
 
 % Plot dose
