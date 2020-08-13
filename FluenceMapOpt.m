@@ -671,7 +671,7 @@ classdef FluenceMapOpt < handle
                             prob.structs{ii}.terms{jj}.dPos(1:prob.nIter+1),...
                             'LineWidth',2);
                         FluenceMapOpt.adjustAxis(gca)
-                        set(gca,'YTick',52:2:56);
+                        set(gca,'YTick',35:10:70);
                     end
                 end
             end
@@ -679,7 +679,8 @@ classdef FluenceMapOpt < handle
             figure(2)
             subplot(2,1,1)
             plot(1:prob.nIter,prob.wDiff(1:prob.nIter),'LineWidth',2)
-            FluenceMapOpt.adjustAxis(gca);
+            FluenceMapOpt.adjustAxis(gca)
+            set(gca,'YTick',0:0.05:0.15);
         end   
         
         function saveResults(prob,fileName)
@@ -1338,8 +1339,8 @@ classdef FluenceMapOpt < handle
             yVals = g.YLim;
             yPad = 0.1*(yVals(2) - yVals(1));
             g.YLim = [yVals(1)-yPad yVals(2)+yPad];
-            g.XLim = [0 11];
-            g.XTick = 0:2:12;
+            g.XLim = [0 42];
+            g.XTick = 0:6:43;
             g.XTickLabels = {};
             g.YTickLabels = {};
             g.LineWidth = 2;      
