@@ -408,8 +408,10 @@ classdef FluenceMapOpt < handle
             myColors = lines;
             if nX == 2
                 myLines = {'--','-'}';
-            else
+            elseif nX == 3
                 myLines = {'--','-',':'};
+            else
+                myLines = {'--','-',':','-.'};
             end            
             
             % Plot dose-volume histograms
