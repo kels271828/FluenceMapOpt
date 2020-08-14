@@ -1208,6 +1208,12 @@ classdef FluenceMapOpt < handle
             %   Used for Figure 1.
             prob.mask = [mask prob.mask(:)'];
         end
+        
+        function mask = getStructMask(prob)
+            % GETSTRUCTMASK Get body structures for all organs.
+            %   Used for Figure 4.
+            mask = prob.mask;
+        end
     end
     
     methods (Hidden, Static)

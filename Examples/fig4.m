@@ -57,7 +57,8 @@ ctShiftScale = ctShift/max(ctShift(:));
 CT50 = repmat(ctShiftScale,[1 1 3]);
 
 % Plot CT
-body50 = prob.mask{end}(idx1,idx2,50);
+mask = prob.getStructMask();
+body50 = mask{end}(idx1,idx2,50);
 imagesc(CT50), hold on
 
 % Indexes
@@ -65,8 +66,8 @@ organs = [3 5 6 4 2 1];
 colors = [2 7 7 3 4 1];
 
 % Plot organ contours
-for i = 1:length(prob.mask)-1
-   contour(prob.mask{organs(i)}(idx1,idx2,50),1,...
+for i = 1:length(mask)-1
+   contour(mask{organs(i)}(idx1,idx2,50),1,...
        'Color',myLines(colors(i),:),'LineWidth',2); 
 end
 
