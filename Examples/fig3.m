@@ -1,7 +1,11 @@
 % Figure 3: Objective function contours of the nonconvex relaxation applied
 % to the example in the introduction. 
 
-% NOTE: Need to change SetAccess of FluenceMapOpt property structs.
+% NOTE: Need to add the following files to PROSTATE folder:
+% * Gantry17_Couch0_D.mat
+% * Gantry353_Couch0_D.mat
+% * rectumEx_VOILIST.mat
+% * tumorEx_VOILIST.mat
 
 clear all; close all; clc;
 
@@ -43,5 +47,5 @@ for ii = 1:3
         wLim = [-30 20];
         wStep = 10;
     end
-    plotContourW(prob,wLim,wStep);
+    plotContourW(prob,structs,wLim,wStep);
 end
