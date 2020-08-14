@@ -701,22 +701,6 @@ classdef FluenceMapOpt < handle
                 'maxIter',prob.maxIter);
             save(fileName,'results');
         end
-        
-        function loadResults(prob,fileName)
-           % LOADRESULTS Load state and results.
-           load(fileName);
-           prob.structs = {results.structs};
-           prob.lambda = results.lambda;
-           prob.overlap = results.overlap;
-           prob.x0 = results.x0;
-           prob.x = results.x;
-           prob.obj = results.obj;
-           prob.wDiff = results.wDiff;
-           prob.nIter = results.nIter;
-           prob.time = results.time;
-           prob.tol = results.tol;
-           prob.maxIter = results.maxIter;
-        end
     end
     
     methods (Hidden)
@@ -1211,24 +1195,23 @@ classdef FluenceMapOpt < handle
             dose = prob.structs{ii}.A*x;
             func = @(d)100*sum(dose >= d)/prob.structs{ii}.nVoxels;
             area = integral(func,0,max(dose));            
-        end
+        end     
         
-        function updateD(prob,D)
-            % UPDATED Update full beamlet-to-voxel matrix.
-            %   Used for Figure 1.
-            prob.D = D;
-        end
-        
-        function updateMask(prob,mask)
-            % UPDATEMASK Update body structures for all organs.
-            %   Used for Figure 1.
-            prob.mask = [mask prob.mask(:)'];
-        end
-        
-        function mask = getStructMask(prob)
-            % GETSTRUCTMASK Get body structures for all organs.
-            %   Used for Figure 4.
-            mask = prob.mask;
+        function updateResults(prob,results)
+           % UPDATERESULTS Update convergence results.
+           %    Used for calcBeamsContinue and calcBeamsConsolidate.
+            if isfield(results,'obj')
+                prob.obj = results.obj;
+            end
+            if isfield(results,'wDiff')
+                prob.wDiff = results.wDiff;
+            end
+            if isfield(results,'nIter')
+                prob.nIter = results.nIter;
+            end
+            if isfield(results,'time')
+                prob.time = results.time;
+            end
         end
     end
     

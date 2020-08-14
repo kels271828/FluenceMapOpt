@@ -55,7 +55,8 @@ ctShiftScale = ctShift/max(ctShift(:));
 CT50 = repmat(ctShiftScale,[1 1 3]);
 
 % Plot CT
-mask = prob.getStructMask();
+names = prob.getNames(prob.structs,prob.nStructs);
+mask = prob.getMaskStruct(names,prob.overlap);
 body50 = mask{end}(idx1,idx2,50);
 imagesc(CT50), hold on
 
