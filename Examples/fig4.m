@@ -1,7 +1,5 @@
 % Figure 4: Organ contours for CORT dataset
 
-% NOTE: Need to change GetAccess of FluenceMapOpt property mask.
-
 clear all; close all; clc;
 
 % Add data and functions to path
