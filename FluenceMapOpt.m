@@ -686,7 +686,7 @@ classdef FluenceMapOpt < handle
         end   
         
         function saveResults(prob,fileName)
-            % SAVERESULTS current state and results.
+            % SAVERESULTS Save current state and results.
             results = struct('structs',prob.structs,...
                 'angles',prob.angles,...
                 'lambda',prob.lambda,...
@@ -700,6 +700,22 @@ classdef FluenceMapOpt < handle
                 'tol',prob.tol,...
                 'maxIter',prob.maxIter);
             save(fileName,'results');
+        end
+        
+        function loadResults(prob,fileName)
+           % LOADRESULTS Load state and results.
+           load(fileName);
+           prob.structs = {results.structs};
+           prob.lambda = results.lambda;
+           prob.overlap = results.overlap;
+           prob.x0 = results.x0;
+           prob.x = results.x;
+           prob.obj = results.obj;
+           prob.wDiff = results.wDiff;
+           prob.nIter = results.nIter;
+           prob.time = results.time;
+           prob.tol = results.tol;
+           prob.maxIter = results.maxIter;
         end
     end
     

@@ -21,10 +21,10 @@ rectum.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
 % Calculate beamlets
 structs = {prostate,rectum};
 prob1 = FluenceMapOpt(structs);
-prob1.plotDVHPaper(prob1.x0);
+prob1.plotDVHPaper([prob1.x0 prob1.x0]);
 
 % Voxels over 50 Gy
-fprintf('Percent voxels > 50 Gy: %.2f\n',prob1.getPercent(2,1))
+fprintf('Percent voxels > 50 Gy: %.2f\n',prob1.getPercent(2,1,50))
 
 %% OAR does meet dose-volume constraint
 
@@ -35,8 +35,8 @@ prob2 = FluenceMapOpt(structs);
 
 % Calculate beamlets
 prob2.calcBeams();
-prob1.plotDVHPaper(prob2.x);
+prob1.plotDVHPaper([prob2.x prob2.x]);
 
 % Voxels over 50 Gy
 prob1.x = prob2.x;
-fprintf('Percent voxels > 50 Gy: %.2f\n',prob1.getPercent(2,1))
+fprintf('Percent voxels > 50 Gy: %.2f\n',prob1.getPercent(2,1,50))

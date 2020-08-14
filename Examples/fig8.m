@@ -23,12 +23,7 @@ rectum.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
 % Create problem instance
 structs = {prostate,rectum};
 prob = FluenceMapOpt(structs);
-load('ex1Results/ex1Approx.mat');
-prob.x = results.x;
-[prob.structs{1},prob.structs{2}] = results.structs;
-prob.nIter = results.nIter;
-prob.obj = results.obj;
-prob.wDiff = results.wDiff;
+prob.loadResults('ex1Results/ex1Approx.mat');
 
-% Plot converngence
+% Plot convergence
 prob.plotObjPaper();
