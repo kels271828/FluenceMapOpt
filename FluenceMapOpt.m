@@ -1196,6 +1196,18 @@ classdef FluenceMapOpt < handle
             func = @(d)100*sum(dose >= d)/prob.structs{ii}.nVoxels;
             area = integral(func,0,max(dose));            
         end
+        
+        function updateD(prob,D)
+            % UPDATED Update full beamlet-to-voxel matrix.
+            %   Used for Figure 1.
+            prob.D = D;
+        end
+        
+        function updateMask(prob,mask)
+            % UPDATEMASK Update body structures for all organs.
+            %   Used for Figure 1.
+            prob.mask = [mask prob.mask(:)'];
+        end
     end
     
     methods (Hidden, Static)

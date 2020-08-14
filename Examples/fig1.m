@@ -7,8 +7,6 @@
 % voxel 1675228, with a 20 Gy / 50% dose-volume constraint on rectum voxels
 % 1674687 and 1675607.
 
-% NOTE: Need to change SetAccess of FluenceMapOpt properties D and mask.
-
 clear all; close all; clc;
 
 % Add data and functions to path
@@ -66,13 +64,13 @@ load('Gantry16_Couch0_D.mat');
 temp = D(:,86);
 A = D(voxels,86);
 load('Gantry352_Couch0_D.mat');
-prob.D = [temp D(:,85)];
+prob.updateD([temp D(:,85)]);
 A = [A D(voxels,85)];
 
 % Add voxels to contour mask
 myVoxels = zeros(184,184,90);
 myVoxels(voxels) = 1;
-prob.mask = [myVoxels prob.mask(:)'];
+prob.updateMask(myVoxels);
 
 % Beamlet intensities at global minimum
 lambda = 5e-6;
