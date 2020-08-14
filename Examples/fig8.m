@@ -1,9 +1,6 @@
 % Figure 8: Convergence of objective function for one PTV and one OAR with
 % one dose-volume constraint.
 
-% Note: Change SetAccess of FluenceMapOpt properties structs, obj, wDiff,
-% and nIter.
-
 clear all; close all; clc;
 
 % Add data and functions to path
