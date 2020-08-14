@@ -1,4 +1,4 @@
-% Figures 9-11: Dose-volume histograms for one PTV and one OAR with one 
+% Figures 9: Dose-volume histogram for one PTV and one OAR with one 
 % dose-volume constraint
 
 clear all; close all; clc;
