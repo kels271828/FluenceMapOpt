@@ -27,6 +27,6 @@ prob = FluenceMapOpt(structs);
 
 % Calculate approximate dose
 fprintf('\nCalculating approximate dose\n\n');
-[prob,~,~] = calcBeamsConsolidate(prob,true);
+prob = calcBeamsConsolidate(prob,true);
 fprintf('\nIterations: %d, Time: %.2f\n',prob.nIter,prob.time);
 prob.saveResults('ex2Approx.mat');
