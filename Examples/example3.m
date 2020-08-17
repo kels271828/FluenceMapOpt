@@ -28,6 +28,7 @@ bladder.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
 fprintf('\nExample3\n')
 structs = {prostate,nodes,rectum,bladder};
 prob = FluenceMapOpt(structs);
+x0 = prob.x0;
 
 % Calculate approximate dose
 fprintf('\nCalculating approximate dose\n\n');
@@ -35,3 +36,9 @@ prob.calcBeams();
 fprintf('\nIterations: %d, Time: %.2f\n\n',prob.nIter,prob.time);
 prob.saveResults('ex3Approx.mat');
 
+% Calculate approximate dose with continuation
+fprintf('Calculating approximate dose with continuation\n\n');
+prob.updateStructs(structs,x0);
+prob = calcBeamsContinue(prob,structs,0.99,0.01,100,true,0,false);
+fprintf('Iterations: %d, Time: %.2f\n',prob.nIter,prob.time);
+prob.saveResults('ex3Continue.mat');

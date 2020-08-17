@@ -1,48 +1,124 @@
-function [prob,nIter,ttime] = calcBeamsContinue(prob,structs,gamma,...
-    sigma,stopType,maxIter,print,consolidate)
-    % CALCBEAMSCONTINUE Approach inspired by Lu paper.
+function prob = calcBeamsContinue(prob,structs,gamma,sigma,maxIter,...
+    print,stopType,consolidate)
+    % CALCBEAMSTEMP Approach inspired by Lu paper.
     
     % Initialization
     t1 = clock;
-    prob.initProb(false);
-    obj = prob.getObj();
-    d95 = prob.getPercentile(1,0.95);
     structsOld = structs;
-    dPos = getPos(prob,structsOld);
+    prob.initProb(false);
+    obj = [prob.getObj()];
+    d95 = getD95(prob);
+    dvc = getDVC(prob,structsOld);
     if print
-        fprintf('iter: 0, obj: %7.4e, dPos: %4.2f\n',obj,dPos(1,1));
+        printResults(0,obj,d95,dvc);
     end
     
     % Continuation
     for kk = 1:maxIter
         % Solve approximate solution
         if consolidate
-           [prob,objTemp,oDiffTemp] = calcBeamsConsolidate(prob,false);
-           obj = [obj objTemp];
-           oDiff = [oDiff oDiffTemp];
+            prob = calcBeamsConsolidate(prob,false);
         else
             prob.calcBeams(false);
-            obj = [obj prob.getObj()];
-            dPos = [dPos; getPos(prob,structsOld)];
         end
-            
-        % Print status
+        obj = [obj, prob.obj(end)];
+        d95 = [d95; getD95(prob)];
+        dvc = [dvc; getDVC(prob,structsOld)];
         if print
-            fprintf('iter: %d, obj: %7.4e, dPos: %4.2f\n',kk,obj(end),dPos(end,1));
+            printResults(kk,obj,d95,dvc);
         end
         
         % Check convergence
-        if checkConv(prob,stopType,structsOld,d95)
-            break
+        if converged(prob,structsOld,stopType,d95)
+            t2 = clock;
+            results.nIter = kk;
+            results.obj = obj;
+            results.time = etime(t2,t1);
+            prob.updateResults(results);
+            return
         end
         
         % Update parameters
+        structs = updatePars(prob,structs,structsOld,sigma,stopType);
+        prob.updateStructs(structs,prob.x);
+        prob.tol = gamma*prob.tol;
+    end
+end
+    
+function d95 = getD95(prob)
+    d95 = [];
+    for ii = 1:prob.nStructs
+        for jj = 1:prob.structs{ii}.nTerms
+            if strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                d95 = [d95 prob.getPercentile(ii,0.95)];
+            end
+        end
+    end
+end
+    
+function dvc = getDVC(prob,structs)
+    dvc = [];
+    for ii = 1:prob.nStructs
+        for jj = 1:prob.structs{ii}.nTerms
+            if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                dose = structs{ii}.terms{jj}.dose;
+                dvc = [dvc prob.getPercent(ii,jj,dose)];
+            end
+        end
+    end
+end
+
+function printResults(iter,obj,d95,dvc)
+    fprintf('iter: %d, obj: %7.4e\n',iter,obj(end))
+    fprintf('d95:')
+    fprintf('%6.2f',d95(end,:))
+    fprintf('\ndvc:')
+    fprintf('%6.2f',dvc(end,:))
+    fprintf('\n\n')
+end
+
+function stop = converged(prob,structs,stopType,d95)
+    stop = true;
+    if stopType == 0
         for ii = 1:prob.nStructs
             for jj = 1:prob.structs{ii}.nTerms
                 if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-                    weight = prob.structs{ii}.terms{jj}.weight;
-                    percent = prob.structs{ii}.terms{jj}.percent;
-                    dose = prob.structs{ii}.terms{jj}.dose;
+                    dose = structs{ii}.terms{jj}.dose;
+                    percent = structs{ii}.terms{jj}.percent;
+                    dvc = prob.getPercent(ii,jj,dose);
+                    if dvc > percent
+                        stop = false;
+                        return
+                    end
+                end
+            end
+        end
+    else
+        count = 1;
+        for ii = 1:prob.nStructs
+            for jj = 1:prob.structs{ii}.nTerms
+                if strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                    if prob.getPercentile(ii,0.95) > 0.98*d95(1,count)
+                        stop = false;
+                        return
+                    else
+                        count = count + 1;
+                    end
+                end
+            end
+        end
+    end
+end
+
+function structs = updatePars(prob,structs,structsOld,sigma,stopType)
+    for ii = 1:prob.nStructs
+        for jj = 1:prob.structs{ii}.nTerms
+            if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                weight = prob.structs{ii}.terms{jj}.weight;
+                percent = prob.structs{ii}.terms{jj}.percent;
+                dose = prob.structs{ii}.terms{jj}.dose;
+                dvc = prob.getPercent(ii,jj,structsOld{ii}.terms{jj}.dose);
+                if dvc > structsOld{ii}.terms{jj}.percent || stopType == 1
                     structs{ii}.terms{jj}.weight = (1 + sigma)*weight;
                     structs{ii}.terms{jj}.percent = (1 - sigma)*percent;
                     if strcmp(prob.structs{ii}.terms{jj}.type,'udvc')
@@ -50,54 +126,8 @@ function [prob,nIter,ttime] = calcBeamsContinue(prob,structs,gamma,...
                     else
                         structs{ii}.terms{jj}.dose = (1 + sigma)*dose;
                     end
-                    prob.updateStructs(structs,prob.x)
                 end
             end
-        end
-        prob.tol = gamma*prob.tol;
-    end
-    nIter = kk;
-    t2 = clock;
-    ttime = etime(t2,t1);
-end
-
-function dPos = getPos(prob,structs)
-    % Get percent voxels above dose value.
-    dPos = [];
-    for ii = 1:prob.nStructs
-        for jj = 1:prob.structs{ii}.nTerms
-            if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-                temp = prob.getPercent(ii,jj,structs{ii}.terms{jj}.dose);
-                dPos = [dPos temp];
-            end
-        end
-    end
-end
-
-function stop = checkConv(prob,stopType,structs,d95)
-    % Check convergence (meet OAR DVC or violate PTV D95)
-    stop = 1;
-    if stopType == 0
-        for ii = 1:prob.nStructs
-            for jj = 1:prob.structs{ii}.nTerms
-                if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-                    percent = structs{ii}.terms{jj}.percent;
-                    temp = prob.getPercent(ii,jj,structs{ii}.terms{jj}.dose);
-                    if strcmp(prob.structs{ii}.terms{jj}.type,'udvc')
-                        if temp > percent
-                            stop = 0;
-                        end
-                    else
-                        if temp < percent
-                            stop = 0;
-                        end
-                    end
-                end
-            end
-        end
-    else
-        if prob.getPercentile(1,0.95) > 0.98*d95
-            stop = 0;
         end
     end
 end

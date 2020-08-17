@@ -1,0 +1,73 @@
+/Applications/MATLAB_R2020a.app/bin/matlab -nodesktop
+
+                            < M A T L A B (R) >
+                  Copyright 1984-2020 The MathWorks, Inc.
+              R2020a Update 4 (9.8.0.1417392) 64-bit (maci64)
+                               June 24, 2020
+
+ 
+To get started, type doc.
+For product information, visit www.mathworks.com.
+ 
+>> example2
+
+Example 2
+
+Calculating approximate dose
+
+iter: 0, obj: 3.7184e+01
+iter: 1, obj: 8.5960e+00, yDiff: 3.4986e-02
+iter: 2, obj: 6.8282e+00, yDiff: 1.7054e-02
+iter: 3, obj: 6.1903e+00, yDiff: 1.0146e-02
+iter: 4, obj: 5.8920e+00, yDiff: 6.6590e-03
+iter: 5, obj: 5.7310e+00, yDiff: 4.9177e-03
+iter: 6, obj: 5.6365e+00, yDiff: 3.6049e-03
+iter: 7, obj: 5.5773e+00, yDiff: 3.2220e-03
+iter: 8, obj: 5.5361e+00, yDiff: 2.4483e-03
+iter: 9, obj: 5.5063e+00, yDiff: 2.4611e-03
+iter: 10, obj: 5.4831e+00, yDiff: 2.2438e-03
+iter: 11, obj: 5.4645e+00, yDiff: 2.2023e-03
+iter: 12, obj: 5.4495e+00, yDiff: 1.9573e-03
+iter: 13, obj: 5.4372e+00, yDiff: 1.4276e-03
+iter: 14, obj: 5.4270e+00, yDiff: 2.1974e-03
+iter: 15, obj: 5.4173e+00, yDiff: 1.2205e-03
+iter: 16, obj: 5.4091e+00, yDiff: 2.5945e-03
+iter: 17, obj: 5.4003e+00, yDiff: 1.5218e-03
+iter: 18, obj: 5.3932e+00, yDiff: 1.8917e-03
+iter: 19, obj: 5.3865e+00, yDiff: 1.4269e-03
+iter: 20, obj: 5.3804e+00, yDiff: 1.5417e-03
+iter: 21, obj: 5.3746e+00, yDiff: 9.1474e-04
+Iterations: 21, Time: 8.71
+
+Calculating approximate dose with continuation
+
+iter: 0, obj: 4.3594e+01
+d95: 79.65
+dvc: 53.26  0.00 68.81 61.29 38.47
+
+iter: 1, obj: 5.3746e+00
+d95: 80.26
+dvc: 24.27  0.00 61.95 42.90 21.84
+
+iter: 2, obj: 5.9972e+00
+d95: 80.81
+dvc:  6.12  0.01 61.23 41.99 21.48
+
+iter: 3, obj: 7.1344e+00
+d95: 81.46
+dvc:  3.81  0.01 60.32 40.84 20.87
+
+iter: 4, obj: 7.1873e+00
+d95: 81.38
+dvc:  3.94  0.00 59.53 39.68 20.33
+
+iter: 5, obj: 7.2212e+00
+d95: 81.36
+dvc:  3.99  0.00 59.41 39.62 20.21
+
+iter: 6, obj: 7.2420e+00
+d95: 81.32
+dvc:  4.09  0.00 59.10 39.26 19.78
+
+Iterations: 6, Time: 55.69
+>> 
