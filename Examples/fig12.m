@@ -1,4 +1,4 @@
-% Figure 13: Dose and beamlets for multiple PTVs and OARs
+% Figure 12: Dose and beamlets for multiple PTVs and OARs
 
 clear all; close all; clc;
 
