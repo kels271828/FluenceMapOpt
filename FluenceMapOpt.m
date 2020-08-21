@@ -912,7 +912,7 @@ classdef FluenceMapOpt < handle
                 for jj = prob.structs{ii}.nTerms
                     prob.structs{ii}.terms{jj}.obj = zeroVec;
                     if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-                        prob.structs{ii}.terms{jj}.resPos = zeroVec;
+                        prob.structs{ii}.terms{jj}.dPos = zeroVec;
                         prob.structs{ii}.terms{jj}.wPos = zeroVec;
                     end
                 end
@@ -929,8 +929,8 @@ classdef FluenceMapOpt < handle
                     res = dose - prob.structs{ii}.terms{jj}.d;
                     if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
                         s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
-                        resPos = 100*sum((-1)^s*res > 0)/nVoxels;
-                        prob.structs{ii}.terms{jj}.dPos(iter+1) = resPos;
+                        dPos = 100*sum((-1)^s*res > 0)/nVoxels;
+                        prob.structs{ii}.terms{jj}.dPos(iter+1) = dPos;
                         wPos = 100*sum(prob.structs{ii}.terms{jj}.w > 0)/nVoxels;
                         prob.structs{ii}.terms{jj}.wPos(iter+1) = wPos;
                         res = res - prob.structs{ii}.terms{jj}.w; 
