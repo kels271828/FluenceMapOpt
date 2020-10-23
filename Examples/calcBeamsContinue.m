@@ -78,8 +78,8 @@ function printResults(iter,obj,d95,dvc)
 end
 
 function stop = converged(prob,structs,stopType,d95)
-    stop = true;
     if stopType == 0
+        stop = true;
         for ii = 1:prob.nStructs
             for jj = 1:prob.structs{ii}.nTerms
                 if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
@@ -94,18 +94,18 @@ function stop = converged(prob,structs,stopType,d95)
             end
         end
     else
+        stop = false;
         count = 1;
         for ii = 1:prob.nStructs
             for jj = 1:prob.structs{ii}.nTerms
                 if strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-                    if prob.getPercentile(ii,0.95) > 0.98*d95(1,count)
-                        stop = false;
+                    if prob.getPercentile(ii,0.95) <= 0.98*d95(1,count)
+                        stop = true;
                         return
-                    else
-                        count = count + 1;
                     end
                 end
             end
+            count = count + 1;
         end
     end
 end
