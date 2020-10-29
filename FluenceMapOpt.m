@@ -236,7 +236,7 @@ classdef FluenceMapOpt < handle
         end
         
         function calcBeamsIter(prob,print)
-            % ITERDOSE Approach inspired by Llacer paper.
+            % CALCBEAMSITER Approach inspired by Llacer paper.
             %
             %   NOTE: Lower dose-volume constraints not implemented.
             if nargin == 1
@@ -247,7 +247,7 @@ classdef FluenceMapOpt < handle
             tic;
             prob.x = prob.x0;
             step = size(prob.Au,1) - prob.nBeamlets;
-            for ii = 1:prob.maxIter
+            for kk = 1:prob.maxIter
                 xOld = prob.x;
                 grad = prob.getIterGrad(prob.x);
                 prob.x = prob.x - step*grad;
@@ -255,11 +255,11 @@ classdef FluenceMapOpt < handle
                 xDiff = norm(xOld - prob.x)/prob.nBeamlets;
                 
                 % Calculate objective
-                prob.nIter = ii;
+                prob.nIter = kk;
                 if print
                     obj = prob.getIterObj(prob.x);        
                     fprintf('iter: %d, obj: %7.4e, xDiff: %7.4e\n',...
-                        ii,obj,xDiff);
+                        kk,obj,xDiff);
                 end
                 
                 % Check convergence
