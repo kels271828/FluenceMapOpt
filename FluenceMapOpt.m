@@ -237,8 +237,6 @@ classdef FluenceMapOpt < handle
         
         function calcBeamsIter(prob,print)
             % CALCBEAMSITER Approach inspired by Llacer paper.
-            %
-            %   NOTE: Lower dose-volume constraints not implemented.
             if nargin == 1
                 print = true;
             end
@@ -246,11 +244,10 @@ classdef FluenceMapOpt < handle
             % Fluence map optimization
             tic;
             prob.x = prob.x0;
-            step = size(prob.Au,1) - prob.nBeamlets;
             for kk = 1:prob.maxIter
                 xOld = prob.x;
                 grad = prob.getIterGrad(prob.x);
-                prob.x = prob.x - step*grad;
+                prob.x = prob.x - grad;
                 prob.x(prob.x < 0) = 0;
                 xDiff = norm(xOld - prob.x)/prob.nBeamlets;
                 
@@ -732,6 +729,11 @@ classdef FluenceMapOpt < handle
                     if (matFull || matSlack) || (matUnif && termUnif)
                         weight = prob.structs{ii}.terms{jj}.weight;
                         temp = sqrt(weight/nVoxels)*prob.structs{ii}.A;
+                        if matSlack && ~termUnif
+                            if strcmp(prob.structs{ii}.terms{jj}.type,'ldvc')
+                                temp = -temp;
+                            end
+                        end
                         A = [A; temp];
                     end
                 end
@@ -750,7 +752,7 @@ classdef FluenceMapOpt < handle
                     for jj = 1:prob.structs{ii}.nTerms
                         weight = prob.structs{ii}.terms{jj}.weight;
                         if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-                            newCol = zeros(size(A,1)  ,nVoxels);
+                            newCol = zeros(size(A,1),nVoxels);
                             eyeTerm = sqrt(weight/nVoxels)*eye(nVoxels);
                             newCol(prevVoxels:prevVoxels+nVoxels-1,:) = eyeTerm;
                             A = [A newCol];
@@ -790,7 +792,11 @@ classdef FluenceMapOpt < handle
                         if ~termUnif
                             if vecSlack
                                 termU = prob.structs{ii}.terms{jj}.u;
-                                temp = sqrt(weight/nVoxels)*termU;
+                                if strcmp(prob.structs{ii}.terms{jj}.type,'udvc')
+                                    temp = sqrt(weight/nVoxels)*termU;
+                                else
+                                    temp = -sqrt(weight/nVoxels)*termU;
+                                end
                             else
                                 termW = prob.structs{ii}.terms{jj}.w;
                                 temp = temp + sqrt(weight/nVoxels)*termW;
@@ -1013,11 +1019,12 @@ classdef FluenceMapOpt < handle
         
         function uDiff = updateU(prob,ii,jj)
             % UPDATE U Update dose variables.
-            dose = prob.structs{ii}.A*prob.x;
+            Ax = prob.structs{ii}.A*prob.x;
             uPrev = prob.structs{ii}.terms{jj}.u;
             d = prob.structs{ii}.terms{jj}.d(1);
             n = prob.structs{ii}.nVoxels - prob.structs{ii}.terms{jj}.k;
-            uProj = FluenceMapOpt.projU(uPrev,max(uPrev,dose),d,n);
+            type = prob.structs{ii}.terms{jj}.type;
+            uProj = FluenceMapOpt.projU(uPrev,Ax,d,n,type);
             step = prob.structs{ii}.terms{jj}.step;
             uDiff = norm(uPrev - uProj)/step;
             prob.structs{ii}.terms{jj}.u = uProj;
@@ -1050,17 +1057,21 @@ classdef FluenceMapOpt < handle
         
         function grad = getIterGrad(prob,x)
             % GETITERGRAD Get gradient for iterative method.
-            grad = prob.Au'*(prob.Au*x - prob.du);
+            grad = prob.lambda*x;
             for ii = 1:prob.nStructs
                 At = prob.structs{ii}.A;
-                nVoxels = prob.structs{ii}.nVoxels;
                 for jj = 1:prob.structs{ii}.nTerms
-                    if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                    if strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                        dt = prob.structs{ii}.terms{jj}.d;
+                        grad = grad + At'*(At*x - dt);
+                    else
                         dt = prob.getIterD(x,ii,jj);
-                        weight = prob.structs{ii}.terms{jj}.weight;
-                        res = (At*x - dt).*(At*x > dt);
-                        termGrad = weight/nVoxels*At'*res;
-                        grad = grad + termGrad;
+                        if strcmp(prob.structs{ii}.terms{jj}.type,'udvc')
+                            res = (At*x - dt).*(At*x > dt);
+                        else
+                            res = (At*x - dt).*(At*x < dt);
+                        end
+                        grad = grad + At'*res;
                     end
                 end
             end
@@ -1076,7 +1087,11 @@ classdef FluenceMapOpt < handle
                     if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
                         dt = prob.getIterD(x,ii,jj);
                         weight = prob.structs{ii}.terms{jj}.weight;
-                        res = (At*x - dt).*(At*x > dt);
+                        if strcmp(prob.structs{ii}.terms{jj}.type,'udvc')
+                            res = (At*x - dt).*(At*x > dt);
+                        else
+                            res = (At*x - dt).*(At*x < dt);
+                        end
                         termObj = weight/(2*nVoxels)*norm(res)^2;
                         obj = obj + termObj;
                     end
@@ -1087,9 +1102,15 @@ classdef FluenceMapOpt < handle
         function dt = getIterD(prob,x,ii,jj)
             % GETITERD Get maximum doses for iterative method.
             n = prob.structs{ii}.nVoxels - prob.structs{ii}.terms{jj}.k;
-            [~,idxSort] = sort(prob.structs{ii}.A*x);
-            dt = prob.structs{ii}.terms{jj}.d;
-            dt(idxSort(n:end)) = 1e6;
+            if strcmp(prob.structs{ii}.terms{jj}.type,'udvc')
+                [~,idxSort] = sort(prob.structs{ii}.A*x,'ascend');
+                dt = prob.structs{ii}.terms{jj}.d;
+                dt(idxSort(n:end)) = 1e6;
+            else
+                [~,idxSort] = sort(prob.structs{ii}.A*x,'descend');
+                dt = prob.structs{ii}.terms{jj}.d;
+                dt(idxSort(n:end)) = -1e6;
+            end
         end
         
         function [doses,dvh] = calcDVH(prob,x)
@@ -1321,23 +1342,43 @@ classdef FluenceMapOpt < handle
             end
         end
         
-        function u = projU(uPrev,u,dose,nVoxels)
+        function u = projU(uPrev,Ax,dose,nVoxels,type)
             % PROJU Project u onto set D_v^k for slack model. 
             %
-            %   D_v^k = {u : u >= uPrev & #(u <= dose) >= nVoxel}
+            %   udvc: D_v^k = {u : u >= uPrev & #(u <= dose) >= nVoxel}
+            %   ldvc: D_v^k = {u : u <= uPrev & #(u >= dose) >= nVoxel}
             count = 0;
-            [~,idx] = sort(u);
-            for ii = 1:length(u)
-                if u(idx(ii)) <= dose
-                    count = count + 1;
-                else
-                    if uPrev(idx(ii)) <= dose
-                        u(idx(ii)) = dose;
+            if strcmp(type,'udvc')
+                u = max(uPrev,Ax);
+                [~,idx] = sort(u,'ascend');
+                for ii = 1:length(u)
+                    if u(idx(ii)) <= dose
                         count = count + 1;
+                    else
+                        if uPrev(idx(ii)) <= dose
+                            u(idx(ii)) = dose;
+                            count = count + 1;
+                        end
+                    end
+                    if count >= nVoxels
+                        break
                     end
                 end
-                if count >= nVoxels
-                    break
+            else
+                u = min(uPrev,Ax);
+                [~,idx] = sort(u,'descend');
+                for ii = 1:length(u)
+                    if u(idx(ii)) >= dose
+                        count = count + 1;
+                    else
+                        if uPrev(idx(ii)) >= dose
+                            u(idx(ii)) = dose;
+                            count = count + 1;
+                        end
+                    end
+                    if count >= nVoxels
+                        break
+                    end
                 end
             end
         end
