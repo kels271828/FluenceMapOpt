@@ -1,4 +1,4 @@
-function plotContourW(prob,wLim,wStep)
+function plotContourW(prob,structs,wLim,wStep)
 
 figure()
 
@@ -12,7 +12,8 @@ fVals = zeros(length(wVals));
 [A,~,~,~] = prob.getA('full');
 for ii = 1:length(wVals)
     for jj = 1:length(wVals)
-        prob.structs{2}.terms{1}.w = [wVals(ii); wVals(jj)];
+        structs{2}.terms{1}.w = [wVals(ii); wVals(jj)];
+        prob.updateStructs(structs,prob.x0);
         d = prob.getd('full');
         prob.x = prob.projX('full');
         fVals(jj,ii) = 0.5*norm(A*prob.x - d)^2;
@@ -62,7 +63,8 @@ step = prob.structs{2}.terms{1}.step;
 coeff = step*prob.structs{2}.terms{1}.weight/prob.structs{2}.nVoxels;
 dose = prob.structs{2}.A*prob.x;
 res = dose - prob.structs{2}.terms{1}.d;
-prob.structs{2}.terms{1}.w = prob.projW(res,k);
+structs{2}.terms{1}.w = prob.projW(res,k);
+prob.updateStructs(structs,prob.x0);
 plot(prob.structs{2}.terms{1}.w(1),prob.structs{2}.terms{1}.w(2),'o',...
         'MarkerFaceColor',myBlue,'MarkerEdgeColor',myBlue,'MarkerSize',10)
 plot(res(1),res(2),'s','MarkerFaceColor',myOrange,'MarkerEdgeColor',myOrange)
@@ -72,7 +74,8 @@ for ii = 1:prob.maxIter
     res = dose - prob.structs{2}.terms{1}.d;
     wPrev = prob.structs{2}.terms{1}.w;
     wStep = wPrev + coeff*(res - wPrev);
-    prob.structs{2}.terms{1}.w = prob.projW(wStep,k);
+    structs{2}.terms{1}.w = prob.projW(wStep,k);
+    prob.updateStructs(structs,prob.x0);
     plot(prob.structs{2}.terms{1}.w(1),prob.structs{2}.terms{1}.w(2),'o',...
         'MarkerFaceColor',myBlue,'MarkerEdgeColor',myBlue,'MarkerSize',10)
     plot(wStep(1),wStep(2),'s','MarkerFaceColor',myOrange,'MarkerEdgeColor',myOrange)

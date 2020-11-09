@@ -1,7 +1,5 @@
 % Figure 4: Organ contours for CORT dataset
 
-% NOTE: Need to change GetAccess of FluenceMapOpt property mask.
-
 clear all; close all; clc;
 
 % Add data and functions to path
@@ -57,7 +55,9 @@ ctShiftScale = ctShift/max(ctShift(:));
 CT50 = repmat(ctShiftScale,[1 1 3]);
 
 % Plot CT
-body50 = prob.mask{end}(idx1,idx2,50);
+names = prob.getNames(prob.structs,prob.nStructs);
+mask = prob.getMaskStruct(names,prob.overlap);
+body50 = mask{end}(idx1,idx2,50);
 imagesc(CT50), hold on
 
 % Indexes
@@ -65,8 +65,8 @@ organs = [3 5 6 4 2 1];
 colors = [2 7 7 3 4 1];
 
 % Plot organ contours
-for i = 1:length(prob.mask)-1
-   contour(prob.mask{organs(i)}(idx1,idx2,50),1,...
+for i = 1:length(mask)-1
+   contour(mask{organs(i)}(idx1,idx2,50),1,...
        'Color',myLines(colors(i),:),'LineWidth',2); 
 end
 

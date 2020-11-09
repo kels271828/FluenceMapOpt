@@ -32,7 +32,7 @@ function testProjU(~)
     u = [1 2 3 4 5 6 7 8 9 10];
     dose = 5;
     nVoxels = 7;
-    uNew = FluenceMapOpt.projU(uPrev,u,dose,nVoxels);
+    uNew = FluenceMapOpt.projU(uPrev,u,dose,nVoxels,'udvc');
     nOver = sum(uNew >= uPrev);
     assert(nOver == length(uNew),'uNew not >= uPrev')
     nUnder = sum(uNew <= dose);

@@ -1,14 +1,14 @@
-/Applications/MATLAB_R2019a.app/bin/matlab -nodesktop
+/Applications/MATLAB_R2020a.app/bin/matlab -nodesktop
 
-                                                 < M A T L A B (R) >
-                                       Copyright 1984-2019 The MathWorks, Inc.
-                                        R2019a (9.6.0.1072779) 64-bit (maci64)
-                                                    March 8, 2019
+                            < M A T L A B (R) >
+                  Copyright 1984-2020 The MathWorks, Inc.
+              R2020a Update 4 (9.8.0.1417392) 64-bit (maci64)
+                               June 24, 2020
 
  
 To get started, type doc.
 For product information, visit www.mathworks.com.
- 
+
 >> example3
 
 Example3
@@ -65,5 +65,53 @@ iter: 46, obj: 1.1582e+01, wDiff: 1.3062e-03
 iter: 47, obj: 1.1578e+01, wDiff: 1.2804e-03
 iter: 48, obj: 1.1574e+01, wDiff: 8.3433e-04
 
-Iterations: 48, Time: 14.74
+Iterations: 48, Time: 15.15
+
+Calculating approximate dose with continuation
+
+iter: 0, obj: 7.1792e+01
+d95: 76.96 58.53
+dvc: 82.47 91.87
+
+iter: 1, obj: 1.1574e+01
+d95: 76.70 57.51
+dvc: 57.33 38.14
+
+iter: 2, obj: 1.1620e+01
+d95: 76.68 57.50
+dvc: 54.23 36.42
+
+iter: 3, obj: 1.1698e+01
+d95: 76.65 57.47
+dvc: 51.73 35.17
+
+iter: 4, obj: 1.1792e+01
+d95: 76.66 57.44
+dvc: 50.03 34.25
+
+iter: 5, obj: 1.1874e+01
+d95: 76.66 57.36
+dvc: 48.33 33.28
+
+iter: 6, obj: 1.1937e+01
+d95: 76.60 57.33
+dvc: 48.20 32.78
+
+iter: 7, obj: 1.2001e+01
+d95: 76.55 57.33
+dvc: 48.14 32.06
+
+iter: 8, obj: 1.2067e+01
+d95: 76.51 57.32
+dvc: 48.20 31.43
+
+iter: 9, obj: 1.2105e+01
+d95: 76.52 57.29
+dvc: 47.84 30.55
+
+iter: 10, obj: 1.2155e+01
+d95: 76.48 57.31
+dvc: 47.53 29.93
+
+Iterations: 10, Time: 84.46
 >> 

@@ -1,4 +1,4 @@
-function [prob,obj,oDiff] = calcBeamsConsolidate(prob,print)
+function prob = calcBeamsConsolidate(prob,print)
     % CALCBEAMSCONSOLIDATE Consolidate all dose-volume terms for each
     % structure into one objective term.
     
@@ -28,12 +28,11 @@ function [prob,obj,oDiff] = calcBeamsConsolidate(prob,print)
         end
     end
     prob.x = projX(prob,A,H,yMat);
-    prob.obj = obj;
-    prob.wDiff = wDiff;
-    prob.nIter = kk;
-    prob.time = toc;
-    obj = getObj(prob,A,yMat);
-    oDiff = getDiff(prob,yMat);
+    results.obj = obj;
+    results.wDiff = wDiff;
+    results.nIter = kk;
+    results.time = toc;
+    prob.updateResults(results);
 end
 
 function [A,H,nDVC] = getA(prob)
@@ -119,19 +118,4 @@ end
 function obj = getObj(prob,A,yMat)
     d = getd(prob,yMat);
     obj = 1/2*norm(A*prob.x-d)^2;
-end
-
-function diff = getDiff(prob,yMat)
-    diff = 0;
-    for ii = 1:prob.nStructs
-        structA = prob.structs{ii}.A;
-        addDvcTerm = true;
-        for jj = 1:prob.structs{ii}.nTerms
-            if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif') && addDvcTerm
-                termDiff = norm(structA*prob.x - yMat{ii},inf);
-                diff = max(diff,termDiff);
-                addDvcTerm = false;
-            end
-        end
-    end
 end

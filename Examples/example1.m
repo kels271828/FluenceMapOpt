@@ -8,35 +8,36 @@ cd ..
 addpath(genpath(pwd));
 cd(currentFolder);
 
-% Loop over different dose/percent values
-labels = ['a' 'b' 'c'];
-doses = [50 30 10];
-for ii = 1:length(doses)
-    fprintf('\nExample 1%s\n',labels(ii));
-    
-    % PTV - prostate
-    prostate.name = 'PTV_68';
-    prostate.terms = {struct('type','unif','dose',81,'weight',1)};
+% PTV - prostate
+prostate.name = 'PTV_68';
+prostate.terms = {struct('type','unif','dose',81,'weight',1)};
 
-    % OAR - rectum
-    rectum.name = 'Rectum';
-    rectum.terms = {struct('type','udvc','dose',doses(ii),...
-        'percent',doses(ii),'weight',1)};
+% OAR - rectum
+rectum.name = 'Rectum';
+rectum.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
 
-    % Create problem instance
-    structs = {prostate,rectum};
-    prob = FluenceMapOpt(structs);
+% Create problem instance
+fprintf('\nExample 1\n');
+structs = {prostate,rectum};
+prob = FluenceMapOpt(structs);
+x0 = prob.x0;
 
-    % Calculate approximate dose
-    fprintf('\nCalculating approximate dose\n\n');
-    prob.calcBeams();
-    fprintf('\nIterations: %d, Time: %.2f\n',prob.nIter,prob.time);
-    prob.saveResults(['ex1' labels(ii) 'Approx.mat']);
+% Calculate approximate dose
+fprintf('\nCalculating approximate dose\n\n');
+prob.calcBeams();
+fprintf('\nIterations: %d, Time: %.2f\n',prob.nIter,prob.time);
+prob.saveResults('ex1Approx.mat');
 
-    % Calculate approximate dose with continuation
-    fprintf('\nCalculating approximate dose with continuation\n\n');
-    prob.tol = 1e-1;
-    prob = calcBeamsContinue(prob,0.95,2,1e-2,100,true,false);
-    fprintf('\nIterations: %d, Time: %.2f\n',prob.nIter,prob.time);
-    prob.saveResults(['ex1' labels(ii) 'Continue.mat']);
-end
+% Calculate approximate dose with continuation
+fprintf('\nCalculating approximate dose with continuation (a)\n\n');
+prob.updateStructs(structs,x0);
+prob = calcBeamsContinue(prob,structs,0.99,0.01,100,true,0,false);
+fprintf('Iterations: %d, Time: %.2f\n',prob.nIter,prob.time);
+prob.saveResults('ex1ContinueA.mat');
+
+% Calculate approximate dose with continuation
+fprintf('\nCalculating approximate dose with continuation (b)\n\n');
+prob.updateStructs(structs,x0);
+prob = calcBeamsContinue(prob,structs,0.99,0.01,100,true,1,false);
+fprintf('Iterations: %d, Time: %.2f\n',prob.nIter,prob.time);
+prob.saveResults('ex1ContinueB.mat');

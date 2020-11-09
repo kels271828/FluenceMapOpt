@@ -1,8 +1,6 @@
 % Figure 8: Convergence of objective function for one PTV and one OAR with
 % one dose-volume constraint.
 
-% Note: Change SetAccess of FluenceMapOpt property structs.
-
 clear all; close all; clc;
 
 % Add data and functions to path
@@ -17,17 +15,14 @@ prostate.terms = {struct('type','unif','dose',81,'weight',1)};
 
 % OAR - rectum
 rectum.name = 'Rectum';
-rectum.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
+rectum.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
 
 % Create problem instance
 structs = {prostate,rectum};
 prob = FluenceMapOpt(structs);
-load('ex1Results/ex1aApprox.mat');
-prob.x = results.x;
-[prob.structs{1},prob.structs{2}] = results.structs;
-prob.nIter = results.nIter;
-prob.obj = results.obj;
-prob.wDiff = results.wDiff;
+load('ex1Results/ex1Approx.mat');
+prob.updateStructs({results.structs});
+prob.updateResults(results);
 
-% Plot converngence
+% Plot convergence
 prob.plotObjPaper();

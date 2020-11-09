@@ -1,5 +1,4 @@
-% Figure 12: Dose-volume histograms for prostate tumor with uniform dose
-% target of 81 Gy with various dose-volume constraints on the rectum.
+% Figure 12: Dose and beamlets for multiple PTVs and OARs
 
 clear all; close all; clc;
 
@@ -11,41 +10,40 @@ cd(currentFolder);
 
 % PTV - prostate
 prostate.name = 'PTV_68';
-prostate.terms = {struct('type','unif','dose',81,'weight',1),...
-    struct('type','ldvc','dose',81,'percent',5,'weight',100),...
-    struct('type','udvc','dose',85,'percent',0,'weight',100)};
+prostate.terms = {struct('type','unif','dose',81,'weight',1)};
+
+% PTV - lymph nodes
+nodes.name = 'PTV_56';
+nodes.terms = {struct('type','unif','dose',60,'weight',1)};
 
 % OAR - rectum
 rectum.name = 'Rectum';
-rectum.terms = {struct('type','udvc','dose',20,'percent',60,'weight',1),...
-    struct('type','udvc','dose',40,'percent',40,'weight',1),...
-    struct('type','udvc','dose',60,'percent',20,'weight',1)};
+rectum.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
+
+% OAR - bladder
+bladder.name = 'Bladder';
+bladder.terms = {struct('type','udvc','dose',30,'percent',30,'weight',1)};
 
 % Create problem instance
-structs = {prostate,rectum};
+structs = {prostate,nodes,rectum,bladder};
 prob = FluenceMapOpt(structs);
-x0 = prob.x0;
-disp('Initialization')
-fprintf('OAR %% > 20 Gy: %.2f, %% > 40 Gy: %.2f, %% > 60 Gy: %.2f\n',...
-    prob.getPercent(2,1,x0),prob.getPercent(2,2,x0),prob.getPercent(2,3,x0));
-fprintf('PTV D95: %.2f, %% < 81 Gy: %.2f, %% > 85 Gy: %.2f\n\n',...
-    prob.getPercentile(prob.structs{1}.A*x0,0.95),...
-    prob.getPercent(1,2,x0),prob.getPercent(1,3,x0));
-% OAR % > 20 Gy: 68.81, % > 40 Gy: 61.29, % > 60 Gy: 38.470.
-% PTV D95: 79.65, % < 81 Gy: 53.26, % > 85 Gy: 0.00, Time: 0.1792
 
 % Load approximate dose
-load('ex2Results/ex2Approx.mat')
-x1 = results.x;
-t1 = results.time;
-disp('Approximate dose')
-fprintf('OAR %% > 20 Gy: %.2f, %% > 40 Gy: %.2f, %% > 60 Gy: %.2f\n',...
-    prob.getPercent(2,1,x1),prob.getPercent(2,2,x1),prob.getPercent(2,3,x1));
-fprintf('PTV D95: %.2f, %% < 81 Gy: %.2f, %% > 85 Gy: %.2f, Time: %.2f\n\n',...
-    prob.getPercentile(prob.structs{1}.A*x1,0.95),...
-    prob.getPercent(1,2,x1),prob.getPercent(1,3,x1),t1);
-% OAR % > 20 Gy: 61.10, % > 40 Gy: 42.66, % > 60 Gy: 21.84
-% PTV D95: 80.72, % < 81 Gy: 12.53, % > 85 Gy: 0.00, Time: 18.87
+load('ex3Results/ex3Approx.mat')
+prob.x = results.x;
 
-% Plot dose-volume histograms
-prob.plotDVHPaper([x0 x1],false)
+% Plot dose
+prob.plotDosePaper()
+
+% Remove extra whitespace
+ax = gca;
+outerpos = ax.OuterPosition;
+ti = ax.TightInset;
+left = outerpos(1) + ti(1);
+bottom = outerpos(2) + ti(2);
+width = outerpos(3) - ti(1) - ti(3);
+height = outerpos(4) - ti(2) - ti(4);
+ax.Position = [left bottom width height];
+
+% Plot beamlets
+prob.plotBeamsPaper()

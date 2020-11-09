@@ -1,11 +1,6 @@
 % Example for setting up problem with FluenceMapOpt
 clear all; close all; clc;
 
-% Add path to data, CT images, and solver
-addpath(genpath('PROSTATE'));
-addpath(genpath('Prostate_Dicom'));
-addpath(genpath('minConf'));
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % For each organ included in the plan, create a structure containing the
 % following fields:
@@ -33,19 +28,19 @@ oar.terms = {struct('type','udvc','dose',50,'percent',50,'weight',1)};
 
 % Create problem instance
 structs = {ptv,oar};
-f = FluenceMapOpt(structs);
+prob = FluenceMapOpt(structs);
 
 % Calculate beamlet intensities
-f.calcBeams();
+prob.calcBeams();
 
 % Plot objective function
-f.plotObj();
+prob.plotObj();
 
 % Plot dose-volume histogram
-f.plotDVH();
+prob.plotDVH();
 
 % Plot beamlet intensities
-f.plotBeams();
+prob.plotBeams();
 
 % Plot dose
-f.plotDose();
+prob.plotDose();

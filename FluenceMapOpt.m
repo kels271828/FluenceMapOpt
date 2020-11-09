@@ -42,6 +42,10 @@ classdef FluenceMapOpt < handle
         nDVC                  % Number of dose-volume constraints
         nAngles               % Number of angles
         nBeamlets             % Number of beamlets
+        obj                   % Objective function values
+        wDiff                 % Convergence criteria
+        nIter                 % Number of iterations used
+        time                  % Time to compute solution (seconds)
     end
     
     properties (Access = private)
@@ -64,10 +68,6 @@ classdef FluenceMapOpt < handle
     properties
         x0              % Initial beamlet intensities
         x               % Final beamlet intensities
-        obj             % Objective function values
-        wDiff           % Convergence criteria
-        nIter           % Number of iterations used
-        time            % Time to compute solution (seconds)
         tol = 1e-3;     % Stopping tolerance
         maxIter = 1000; % Maximum number of iterations
     end
@@ -116,6 +116,30 @@ classdef FluenceMapOpt < handle
             % Compute initial beamlets
             if isempty(prob.x0)
                 prob.x0 = prob.projX('unif');
+            end
+            prob.x = prob.x0;
+        end
+        
+        function updateStructs(prob,structs,x0)
+            % UPDATESTRUCTS Update structure weights, doses, or percents.
+            if nargin == 1
+                error('Not enough input arguments.')
+            end
+            if ~iscell(structs)
+                error('Invalid input for `structs`.')
+            end
+            for ii = 1:prob.nStructs
+                prob.structs{ii}.terms = FluenceMapOpt.getTermVars(...
+                    structs{ii}.terms,prob.structs{ii}.nTerms,...
+                    prob.structs{ii}.nVoxels);
+            end
+            [prob.A,prob.H,~,~] = prob.getA('full');
+            [prob.Au,prob.Hu,~,~] = prob.getA('unif');
+            prob.du = prob.getd('unif');
+            if nargin < 3
+                prob.x0 = prob.projX('unif');
+            else
+                prob.x0 = x0;
             end
             prob.x = prob.x0;
         end
@@ -212,9 +236,7 @@ classdef FluenceMapOpt < handle
         end
         
         function calcBeamsIter(prob,print)
-            % ITERDOSE Approach inspired by Llacer paper.
-            %
-            %   NOTE: Lower dose-volume constraints not implemented.
+            % CALCBEAMSITER Approach inspired by Llacer paper.
             if nargin == 1
                 print = true;
             end
@@ -222,20 +244,19 @@ classdef FluenceMapOpt < handle
             % Fluence map optimization
             tic;
             prob.x = prob.x0;
-            step = size(prob.Au,1) - prob.nBeamlets;
-            for ii = 1:prob.maxIter
+            for kk = 1:prob.maxIter
                 xOld = prob.x;
                 grad = prob.getIterGrad(prob.x);
-                prob.x = prob.x - step*grad;
+                prob.x = prob.x - grad;
                 prob.x(prob.x < 0) = 0;
                 xDiff = norm(xOld - prob.x)/prob.nBeamlets;
                 
                 % Calculate objective
-                prob.nIter = ii;
+                prob.nIter = kk;
                 if print
                     obj = prob.getIterObj(prob.x);        
                     fprintf('iter: %d, obj: %7.4e, xDiff: %7.4e\n',...
-                        ii,obj,xDiff);
+                        kk,obj,xDiff);
                 end
                 
                 % Check convergence
@@ -384,8 +405,10 @@ classdef FluenceMapOpt < handle
             myColors = lines;
             if nX == 2
                 myLines = {'--','-'}';
-            else
+            elseif nX == 3
                 myLines = {'--','-',':'};
+            else
+                myLines = {'--','-',':','-.'};
             end            
             
             % Plot dose-volume histograms
@@ -647,7 +670,7 @@ classdef FluenceMapOpt < handle
                             prob.structs{ii}.terms{jj}.dPos(1:prob.nIter+1),...
                             'LineWidth',2);
                         FluenceMapOpt.adjustAxis(gca)
-                        set(gca,'YTick',52:2:56);
+                        set(gca,'YTick',35:10:70);
                     end
                 end
             end
@@ -655,11 +678,12 @@ classdef FluenceMapOpt < handle
             figure(2)
             subplot(2,1,1)
             plot(1:prob.nIter,prob.wDiff(1:prob.nIter),'LineWidth',2)
-            FluenceMapOpt.adjustAxis(gca);
+            FluenceMapOpt.adjustAxis(gca)
+            set(gca,'YTick',0:0.05:0.15);
         end   
         
         function saveResults(prob,fileName)
-            % SAVERESULTS current state and results.
+            % SAVERESULTS Save current state and results.
             results = struct('structs',prob.structs,...
                 'angles',prob.angles,...
                 'lambda',prob.lambda,...
@@ -705,6 +729,11 @@ classdef FluenceMapOpt < handle
                     if (matFull || matSlack) || (matUnif && termUnif)
                         weight = prob.structs{ii}.terms{jj}.weight;
                         temp = sqrt(weight/nVoxels)*prob.structs{ii}.A;
+                        if matSlack && ~termUnif
+                            if strcmp(prob.structs{ii}.terms{jj}.type,'ldvc')
+                                temp = -temp;
+                            end
+                        end
                         A = [A; temp];
                     end
                 end
@@ -723,7 +752,7 @@ classdef FluenceMapOpt < handle
                     for jj = 1:prob.structs{ii}.nTerms
                         weight = prob.structs{ii}.terms{jj}.weight;
                         if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-                            newCol = zeros(size(A,1)  ,nVoxels);
+                            newCol = zeros(size(A,1),nVoxels);
                             eyeTerm = sqrt(weight/nVoxels)*eye(nVoxels);
                             newCol(prevVoxels:prevVoxels+nVoxels-1,:) = eyeTerm;
                             A = [A newCol];
@@ -763,7 +792,11 @@ classdef FluenceMapOpt < handle
                         if ~termUnif
                             if vecSlack
                                 termU = prob.structs{ii}.terms{jj}.u;
-                                temp = sqrt(weight/nVoxels)*termU;
+                                if strcmp(prob.structs{ii}.terms{jj}.type,'udvc')
+                                    temp = sqrt(weight/nVoxels)*termU;
+                                else
+                                    temp = -sqrt(weight/nVoxels)*termU;
+                                end
                             else
                                 termW = prob.structs{ii}.terms{jj}.w;
                                 temp = temp + sqrt(weight/nVoxels)*termW;
@@ -885,7 +918,7 @@ classdef FluenceMapOpt < handle
                 for jj = prob.structs{ii}.nTerms
                     prob.structs{ii}.terms{jj}.obj = zeroVec;
                     if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
-                        prob.structs{ii}.terms{jj}.resPos = zeroVec;
+                        prob.structs{ii}.terms{jj}.dPos = zeroVec;
                         prob.structs{ii}.terms{jj}.wPos = zeroVec;
                     end
                 end
@@ -902,8 +935,8 @@ classdef FluenceMapOpt < handle
                     res = dose - prob.structs{ii}.terms{jj}.d;
                     if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
                         s = strcmp(prob.structs{ii}.terms{jj}.type,'ldvc');
-                        resPos = 100*sum((-1)^s*res > 0)/nVoxels;
-                        prob.structs{ii}.terms{jj}.dPos(iter+1) = resPos;
+                        dPos = 100*sum((-1)^s*res > 0)/nVoxels;
+                        prob.structs{ii}.terms{jj}.dPos(iter+1) = dPos;
                         wPos = 100*sum(prob.structs{ii}.terms{jj}.w > 0)/nVoxels;
                         prob.structs{ii}.terms{jj}.wPos(iter+1) = wPos;
                         res = res - prob.structs{ii}.terms{jj}.w; 
@@ -986,11 +1019,12 @@ classdef FluenceMapOpt < handle
         
         function uDiff = updateU(prob,ii,jj)
             % UPDATE U Update dose variables.
-            dose = prob.structs{ii}.A*prob.x;
+            Ax = prob.structs{ii}.A*prob.x;
             uPrev = prob.structs{ii}.terms{jj}.u;
             d = prob.structs{ii}.terms{jj}.d(1);
             n = prob.structs{ii}.nVoxels - prob.structs{ii}.terms{jj}.k;
-            uProj = FluenceMapOpt.projU(uPrev,max(uPrev,dose),d,n);
+            type = prob.structs{ii}.terms{jj}.type;
+            uProj = FluenceMapOpt.projU(uPrev,Ax,d,n,type);
             step = prob.structs{ii}.terms{jj}.step;
             uDiff = norm(uPrev - uProj)/step;
             prob.structs{ii}.terms{jj}.u = uProj;
@@ -1023,17 +1057,21 @@ classdef FluenceMapOpt < handle
         
         function grad = getIterGrad(prob,x)
             % GETITERGRAD Get gradient for iterative method.
-            grad = prob.Au'*(prob.Au*x - prob.du);
+            grad = prob.lambda*x;
             for ii = 1:prob.nStructs
                 At = prob.structs{ii}.A;
-                nVoxels = prob.structs{ii}.nVoxels;
                 for jj = 1:prob.structs{ii}.nTerms
-                    if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                    if strcmp(prob.structs{ii}.terms{jj}.type,'unif')
+                        dt = prob.structs{ii}.terms{jj}.d;
+                        grad = grad + At'*(At*x - dt);
+                    else
                         dt = prob.getIterD(x,ii,jj);
-                        weight = prob.structs{ii}.terms{jj}.weight;
-                        res = (At*x - dt).*(At*x > dt);
-                        termGrad = weight/nVoxels*At'*res;
-                        grad = grad + termGrad;
+                        if strcmp(prob.structs{ii}.terms{jj}.type,'udvc')
+                            res = (At*x - dt).*(At*x > dt);
+                        else
+                            res = (At*x - dt).*(At*x < dt);
+                        end
+                        grad = grad + At'*res;
                     end
                 end
             end
@@ -1049,7 +1087,11 @@ classdef FluenceMapOpt < handle
                     if ~strcmp(prob.structs{ii}.terms{jj}.type,'unif')
                         dt = prob.getIterD(x,ii,jj);
                         weight = prob.structs{ii}.terms{jj}.weight;
-                        res = (At*x - dt).*(At*x > dt);
+                        if strcmp(prob.structs{ii}.terms{jj}.type,'udvc')
+                            res = (At*x - dt).*(At*x > dt);
+                        else
+                            res = (At*x - dt).*(At*x < dt);
+                        end
                         termObj = weight/(2*nVoxels)*norm(res)^2;
                         obj = obj + termObj;
                     end
@@ -1060,9 +1102,15 @@ classdef FluenceMapOpt < handle
         function dt = getIterD(prob,x,ii,jj)
             % GETITERD Get maximum doses for iterative method.
             n = prob.structs{ii}.nVoxels - prob.structs{ii}.terms{jj}.k;
-            [~,idxSort] = sort(prob.structs{ii}.A*x);
-            dt = prob.structs{ii}.terms{jj}.d;
-            dt(idxSort(n:end)) = 1e6;
+            if strcmp(prob.structs{ii}.terms{jj}.type,'udvc')
+                [~,idxSort] = sort(prob.structs{ii}.A*x,'ascend');
+                dt = prob.structs{ii}.terms{jj}.d;
+                dt(idxSort(n:end)) = 1e6;
+            else
+                [~,idxSort] = sort(prob.structs{ii}.A*x,'descend');
+                dt = prob.structs{ii}.terms{jj}.d;
+                dt(idxSort(n:end)) = -1e6;
+            end
         end
         
         function [doses,dvh] = calcDVH(prob,x)
@@ -1126,19 +1174,38 @@ classdef FluenceMapOpt < handle
             hold off
         end
         
-        function p = getPercent(prob,ii,jj,x)
+        function dose = getDose(prob,ii,x)
+            % GETDOSE Get total dose to structure.
+            if nargin == 2
+                x = prob.x;
+            end
+            dose = sum(prob.structs{ii}.A*x);
+        end
+                   
+        function p = getPercent(prob,ii,jj,d,x)
             % GETPERCENT Get % of voxels violating dose-volume constraint.
-            if nargin == 3
+            if nargin == 4
                 x = prob.x;
             end
             Ax = prob.structs{ii}.A*x;
-            d = prob.structs{ii}.terms{jj}.dose;
+            %d = prob.structs{ii}.terms{jj}.dose;
             n = prob.structs{ii}.nVoxels;
             if strcmp(prob.structs{ii}.terms{jj}.type,'udvc')
                 p = 100*sum(Ax > d)/n;
             else
                 p = 100*sum(Ax < d)/n;
             end
+        end
+        
+        function doseP = getPercentile(prob,ii,p,x)
+            % GETPERCENTILE Get dose at pth percentile.
+            if nargin == 3
+                x = prob.x;
+            end
+            dose = prob.structs{ii}.A*x;
+            idx = floor((1-p)*length(dose));
+            dose_sort = sort(dose);
+            doseP = dose_sort(idx);
         end
         
         function area = getArea(prob,ii,x)
@@ -1149,6 +1216,23 @@ classdef FluenceMapOpt < handle
             dose = prob.structs{ii}.A*x;
             func = @(d)100*sum(dose >= d)/prob.structs{ii}.nVoxels;
             area = integral(func,0,max(dose));            
+        end     
+        
+        function updateResults(prob,results)
+           % UPDATERESULTS Update convergence results.
+           %    Used for calcBeamsContinue and calcBeamsConsolidate.
+            if isfield(results,'obj')
+                prob.obj = results.obj;
+            end
+            if isfield(results,'wDiff')
+                prob.wDiff = results.wDiff;
+            end
+            if isfield(results,'nIter')
+                prob.nIter = results.nIter;
+            end
+            if isfield(results,'time')
+                prob.time = results.time;
+            end
         end
     end
     
@@ -1157,7 +1241,7 @@ classdef FluenceMapOpt < handle
             % GETD Get full beamlet-to-voxel matrix.
             temp = [];
             for ii = angles
-                load(['Gantry' int2str(ii) '_Couch0_D.mat']);
+                load(['PROSTATE/Gantry' int2str(ii) '_Couch0_D.mat']);
                 temp = [temp D];
             end
             D = temp;
@@ -1169,7 +1253,7 @@ classdef FluenceMapOpt < handle
             nDVC = 0;
             vPrev = [];
             for ii = 1:nStructs
-                load([structs{ii}.name '_VOILIST.mat']);
+                load(['PROSTATE/' structs{ii}.name '_VOILIST.mat']);
                 if ~overlap
                     [v,vPrev] = FluenceMapOpt.removeOverlap(v,vPrev); 
                 end
@@ -1220,14 +1304,14 @@ classdef FluenceMapOpt < handle
             % GETMASKSTRUCT Get body structure contours for all organs.
             vPrev = [];
             for ii = 1:length(names)
-               load([names{ii} '_VOILIST.mat']);
+               load(['PROSTATE/' names{ii} '_VOILIST.mat']);
                if ~overlap
                    [v,vPrev] = FluenceMapOpt.removeOverlap(v,vPrev); 
                end
                mask{ii} = FluenceMapOpt.getMask(v);
             end
             if ~any(strcmp(names,'BODY'))
-                load('BODY_VOILIST.mat');
+                load('PROSTATE/BODY_VOILIST.mat');
                 mask{ii+1} = FluenceMapOpt.getMask(v);
             end
         end
@@ -1258,42 +1342,55 @@ classdef FluenceMapOpt < handle
             end
         end
         
-        function u = projU(uPrev,u,dose,nVoxels)
+        function u = projU(uPrev,Ax,dose,nVoxels,type)
             % PROJU Project u onto set D_v^k for slack model. 
             %
-            %   D_v^k = {u : u >= uPrev & #(u <= dose) >= nVoxel}
+            %   udvc: D_v^k = {u : u >= uPrev & #(u <= dose) >= nVoxel}
+            %   ldvc: D_v^k = {u : u <= uPrev & #(u >= dose) >= nVoxel}
             count = 0;
-            [~,idx] = sort(u);
-            for ii = 1:length(u)
-                if u(idx(ii)) <= dose
-                    count = count + 1;
-                else
-                    if uPrev(idx(ii)) <= dose
-                        u(idx(ii)) = dose;
+            if strcmp(type,'udvc')
+                u = max(uPrev,Ax);
+                [~,idx] = sort(u,'ascend');
+                for ii = 1:length(u)
+                    if u(idx(ii)) <= dose
                         count = count + 1;
+                    else
+                        if uPrev(idx(ii)) <= dose
+                            u(idx(ii)) = dose;
+                            count = count + 1;
+                        end
+                    end
+                    if count >= nVoxels
+                        break
                     end
                 end
-                if count >= nVoxels
-                    break
+            else
+                u = min(uPrev,Ax);
+                [~,idx] = sort(u,'descend');
+                for ii = 1:length(u)
+                    if u(idx(ii)) >= dose
+                        count = count + 1;
+                    else
+                        if uPrev(idx(ii)) >= dose
+                            u(idx(ii)) = dose;
+                            count = count + 1;
+                        end
+                    end
+                    if count >= nVoxels
+                        break
+                    end
                 end
             end
         end
         
         function [idx,nX,nY] = getBeamCoords(angle)
             % GETBEAMCOORDS Get beamlet coordinates.
-            load(['Gantry' int2str(angle) '_Couch0_BEAMINFO.mat']);
+            load(['PROSTATE/Gantry' int2str(angle) '_Couch0_BEAMINFO.mat']);
             xIdx = x - min(x) + 1;
             yIdx = y - min(y) + 1;
             nX = max(xIdx);
             nY = max(yIdx);
             idx = sub2ind([nX,nY],xIdx,yIdx);
-        end
-
-        function doseP = getPercentile(dose,p)
-            % GETPERCENTILE Get dose at pth percentile.
-            idx = floor((1-p)*length(dose));
-            dose_sort = sort(dose);
-            doseP = dose_sort(idx);
         end
         
         function adjustAxis(g)
@@ -1302,8 +1399,8 @@ classdef FluenceMapOpt < handle
             yVals = g.YLim;
             yPad = 0.1*(yVals(2) - yVals(1));
             g.YLim = [yVals(1)-yPad yVals(2)+yPad];
-            g.XLim = [0 11];
-            g.XTick = 0:2:12;
+            g.XLim = [0 42];
+            g.XTick = 0:6:43;
             g.XTickLabels = {};
             g.YTickLabels = {};
             g.LineWidth = 2;      
