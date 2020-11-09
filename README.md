@@ -9,7 +9,7 @@ We develop efficient, provably convergent algorithms based on partial minimizati
 We demonstrate our approach using the CORT dataset, and show that it is easily adaptable to radiation treatment planning with dose-volume constraints for multiple tumors and organs-at-risk.
 
 ## Documents
-* [Preprint](https://arxiv.org/abs/1907.10712) (April 2020)
+* [Preprint](https://arxiv.org/abs/1907.10712) (November 2020)
 * [Poster](https://github.com/kels271828/FluenceMapOpt/blob/master/poster.pdf) (April 2018)
 
 ## Code
