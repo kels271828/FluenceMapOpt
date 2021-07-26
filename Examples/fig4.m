@@ -8,8 +8,7 @@ cd ..
 addpath(genpath(pwd));
 cd(currentFolder);
 
-%% Create problem instance
-
+%% Create problem instancez
 % prostate
 prostate.name = 'PTV_68';
 prostate.terms = {struct('type','unif','dose',81,'weight',1)};
@@ -61,13 +60,13 @@ body50 = mask{end}(idx1,idx2,50);
 imagesc(CT50), hold on
 
 % Indexes
-organs = [3 5 6 4 2 1];
-colors = [2 7 7 3 4 1];
+organs = [3 5 6 4 2 1 7];
+colors = [2 7 7 3 4 1 5];
 
 % Plot organ contours
-for i = 1:length(mask)-1
+for i = 1:length(mask)
    contour(mask{organs(i)}(idx1,idx2,50),1,...
-       'Color',myLines(colors(i),:),'LineWidth',2); 
+       'Color',myLines(colors(7),:),'LineWidth',2); % colors(i)
 end
 
 % Annotations
