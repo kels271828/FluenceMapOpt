@@ -8,7 +8,8 @@ cd ..
 addpath(genpath(pwd));
 cd(currentFolder);
 
-%% Create problem instancez
+%% Create problem instance
+
 % prostate
 prostate.name = 'PTV_68';
 prostate.terms = {struct('type','unif','dose',81,'weight',1)};
