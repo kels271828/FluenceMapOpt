@@ -2,9 +2,9 @@
 
 [![DOI](https://zenodo.org/badge/224053659.svg)](https://zenodo.org/badge/latestdoi/224053659)
 
-Fluence map optimization for intensity-modulated radiation therapy planning can be formulated as a large-scale inverse problem with multi-objectives on the tumors and organs-at-risk.
-Unfortunately, clinically relevant dose-volume constraints are nonconvex, so convex formulations and algorithms cannot be directly applied to the problem.
-We propose a novel approach to handle dose-volume constraints while preserving their nonconvexity, as opposed to previous efforts which focused on convex approximations.
+Fluence map optimization for intensity-modulated radiation therapy planning can be formulated as a large-scale inverse problem with competing objectives and constraints associated with the tumors and organs-at-risk.
+Unfortunately, clinically relevant dose-volume constraints are nonconvex, so standard algorithms for convex problems cannot be directly applied.
+While prior work focused on convex approximations for these constraints, we propose a novel relaxation approach to handle nonconvex dose-volume constraints.
 We develop efficient, provably convergent algorithms based on partial minimization, and show how to adapt them to handle maximum-dose constraints and infeasible problems.
 We demonstrate our approach using the CORT dataset, and show that it is easily adaptable to radiation treatment planning with dose-volume constraints for multiple tumors and organs-at-risk.
 
